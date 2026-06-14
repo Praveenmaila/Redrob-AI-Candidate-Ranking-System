@@ -1,0 +1,11 @@
+components:
+  behavioral: 0.45
+  availability: 0.15
+  assessment: 0.15
+  github: 0.10
+  years: 0.10
+  ai_boost: 0.05
+honeypot_penalty_weight: 0.25
+ai_boost_scale: 5.0
+years_scale: 20.0
+# If you want different scoring, edit these values and re-run the ranker.

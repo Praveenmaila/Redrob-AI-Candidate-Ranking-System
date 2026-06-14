@@ -1,0 +1,7 @@
+Senior Machine Learning Engineer
+
+We are looking for a Senior Machine Learning Engineer with 5+ years of experience building production ML systems. Must have strong experience in Python, PyTorch, and NLP, including transformer models and sentence embeddings. Responsibilities include designing scalable model inference pipelines, feature engineering, and collaborating with data scientists and backend engineers.
+
+Required skills: Python, PyTorch, NLP, transformers, feature engineering, production ML
+
+Preferred: experience with sentence-transformers, semantic search, and candidate ranking systems.
