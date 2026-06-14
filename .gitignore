@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+
+output/
+src/__pycache__/
+
+.vscode/
+.DS_Store
+
+data/candidates.jsonl
