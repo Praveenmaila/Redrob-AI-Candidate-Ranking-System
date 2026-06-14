@@ -1,0 +1,12 @@
+{
+  "n_candidates": 100000,
+  "load_time_s": 112.13849570001184,
+  "embeddings_time_s": 27.67902640000102,
+  "feature_build_time_s": 2.86478299999726,
+  "n_features": 100000,
+  "ranking_time_s": 6.414447200004361,
+  "write_time_s": 0.0012685999972745776,
+  "validation_time_s": 0.012160099999164231,
+  "validation_errors": [],
+  "total_time_s": 149.11028530000476
+}
