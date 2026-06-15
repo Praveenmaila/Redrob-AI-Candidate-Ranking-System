@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pathlib import Path
 import threading
@@ -7,6 +8,15 @@ import time
 import os
 
 app = FastAPI()
+
+# allow CORS from local dev frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 STATE = {"status": "ready", "progressMessage": "idle", "pid": None}
 
