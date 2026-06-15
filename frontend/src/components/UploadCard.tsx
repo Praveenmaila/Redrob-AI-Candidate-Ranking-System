@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { Button } from "./shadcn";
 import { useDropzone } from "react-dropzone";
 
 interface Props {
@@ -39,7 +40,8 @@ export default function UploadCard({ title, accepted, file, onFile }: Props) {
             <div className="text-xs text-gray-500">
               {(file.size / 1024).toFixed(1)} KB
             </div>
-            <button
+            <Button
+              variant="ghost"
               className="mt-2 text-sm text-red-600"
               onClick={(e) => {
                 e.stopPropagation();
@@ -47,7 +49,7 @@ export default function UploadCard({ title, accepted, file, onFile }: Props) {
               }}
             >
               Remove
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="text-center text-sm text-gray-500">

@@ -1,5 +1,6 @@
 "use client";
 import React, { useMemo, useState } from "react";
+import { Button } from "./shadcn";
 
 interface Props {
   rows: any[];
@@ -103,20 +104,21 @@ export default function ResultsTable({ rows, onRowClick }: Props) {
 
       <div className="mt-4 flex items-center justify-between">
         <div>
-          <button
+          <Button
+            variant="default"
             disabled={page === 0}
             onClick={() => setPage((p) => Math.max(0, p - 1))}
-            className="px-3 py-1 bg-gray-100 rounded mr-2"
+            className="mr-2"
           >
             Previous
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             disabled={page >= pageCount - 1}
             onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-            className="px-3 py-1 bg-gray-100 rounded"
           >
             Next
-          </button>
+          </Button>
         </div>
         <div className="text-sm text-gray-600">
           Page {page + 1} / {pageCount}

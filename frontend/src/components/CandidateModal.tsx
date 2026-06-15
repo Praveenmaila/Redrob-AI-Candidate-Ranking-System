@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { Button } from "./shadcn";
 
 interface Props {
   row: any | null;
@@ -13,9 +14,9 @@ export default function CandidateModal({ row, onClose }: Props) {
       <div className="bg-white rounded-md shadow-lg w-full max-w-2xl p-6">
         <div className="flex justify-between items-start">
           <h3 className="text-lg font-semibold">Candidate Details</h3>
-          <button onClick={onClose} className="text-gray-500">
+          <Button onClick={onClose} variant="ghost">
             Close
-          </button>
+          </Button>
         </div>
 
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">

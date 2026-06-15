@@ -3,6 +3,7 @@ import React from "react";
 import UploadCard from "../components/UploadCard";
 import ProgressPanel from "../components/ProgressPanel";
 import { useRanking } from "../hooks/useRanking";
+import { Button } from "../components/shadcn";
 
 export default function DashboardPage() {
   const {
@@ -35,13 +36,13 @@ export default function DashboardPage() {
       </div>
 
       <div className="flex items-center space-x-4">
-        <button
+        <Button
+          variant="primary"
           disabled={!jdFile || !candidatesFile || isRunning}
           onClick={() => startRanking()}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md shadow hover:bg-indigo-700 disabled:opacity-50"
         >
           Run Ranking
-        </button>
+        </Button>
         <a href="/results" className="text-sm text-gray-600 hover:underline">
           View latest results
         </a>
