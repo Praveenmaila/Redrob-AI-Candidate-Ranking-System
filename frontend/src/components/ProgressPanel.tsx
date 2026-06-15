@@ -5,9 +5,11 @@ interface Props {
   status: string;
   isRunning: boolean;
   messages: string[];
+  backendUrl?: string;
+  lastError?: string | null;
 }
 
-export default function ProgressPanel({ status, isRunning, messages }: Props) {
+export default function ProgressPanel({ status, isRunning, messages, backendUrl, lastError }: Props) {
   return (
     <div className="mt-6 bg-white rounded-md shadow p-4">
       <div className="flex items-center space-x-3">
@@ -25,6 +27,17 @@ export default function ProgressPanel({ status, isRunning, messages }: Props) {
       </div>
 
       <div className="mt-3">
+        {backendUrl ? (
+          <div className="text-xs text-gray-500 mb-2">
+            Backend: <a href={backendUrl} className="underline">{backendUrl}</a>
+          </div>
+        ) : null}
+        {lastError ? (
+          <div className="mb-2 p-2 bg-red-50 border border-red-100 text-sm text-red-700 rounded">
+            <div className="font-medium">Last error</div>
+            <div className="whitespace-pre-wrap text-xs mt-1">{lastError}</div>
+          </div>
+        ) : null}
         {messages && messages.length ? (
           <ul className="text-sm text-gray-600 list-disc list-inside">
             {messages.map((m, i) => (

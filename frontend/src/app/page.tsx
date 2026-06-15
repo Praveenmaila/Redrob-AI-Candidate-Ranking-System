@@ -15,6 +15,8 @@ export default function DashboardPage() {
     status,
     progressMessages,
     isRunning,
+    backendUrl,
+    lastError,
   } = useRanking();
 
   return (
@@ -52,6 +54,8 @@ export default function DashboardPage() {
         status={status}
         isRunning={isRunning}
         messages={progressMessages}
+        backendUrl={backendUrl}
+        lastError={lastError}
       />
     </div>
   );

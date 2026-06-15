@@ -14,6 +14,8 @@ function computeBaseURL() {
 
 const baseURL = computeBaseURL();
 
+export const BASE_URL = baseURL;
+
 export const api = axios.create({
   baseURL,
   timeout: 120000,

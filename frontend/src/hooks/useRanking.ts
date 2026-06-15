@@ -1,6 +1,6 @@
 "use client";
 import { useState, useCallback } from "react";
-import { api } from "../lib/api";
+import { api, BASE_URL } from "../lib/api";
 
 export function useRanking() {
   const [jdFile, setJdFile] = useState<File | null>(null);
@@ -8,12 +8,14 @@ export function useRanking() {
   const [isRunning, setIsRunning] = useState(false);
   const [status, setStatus] = useState("");
   const [progressMessages, setProgressMessages] = useState<string[]>([]);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const startRanking = useCallback(async () => {
     if (!jdFile || !candidatesFile) return;
     setIsRunning(true);
     setStatus("Starting");
     setProgressMessages(["Uploading files..."]);
+    setLastError(null);
 
     try {
       const fd = new FormData();
@@ -52,15 +54,18 @@ export function useRanking() {
       setTimeout(poll, 1500);
     } catch (e: any) {
       let msg = "Failed to start ranking: " + (e.message || String(e));
-      // axios error with response
-      if (e?.response?.status) {
-        msg += ` (status ${e.response.status})`;
-        if (e.response.status === 404) {
-          msg +=
-            " — backend endpoint not found. Is the backend server running at http://localhost:8000 ?";
-        }
+      try {
+        if (e?.config?.url) msg += ` | url=${e.config.url}`;
+        if (e?.response?.status) msg += ` | status=${e.response.status}`;
+        if (e?.response?.data) msg += ` | data=${JSON.stringify(e.response.data).slice(0,500)}`;
+      } catch (err) {
+        /* ignore stringify errors */
+      }
+      if (e?.response?.status === 404) {
+        msg += ` — backend endpoint not found. Is the backend server running at ${BASE_URL} ?`;
       }
       setProgressMessages((prev) => [...prev, msg]);
+      setLastError(msg);
       setIsRunning(false);
       setStatus("Failed");
     }
