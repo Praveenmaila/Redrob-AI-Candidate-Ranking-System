@@ -17,6 +17,7 @@ export default function DashboardPage() {
     isRunning,
     backendUrl,
     lastError,
+    retry,
   } = useRanking();
 
   return (
@@ -56,6 +57,7 @@ export default function DashboardPage() {
         messages={progressMessages}
         backendUrl={backendUrl}
         lastError={lastError}
+        onRetry={retry}
       />
     </div>
   );

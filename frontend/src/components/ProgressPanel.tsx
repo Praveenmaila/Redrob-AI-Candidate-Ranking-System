@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { Button } from "../components/shadcn";
 
 interface Props {
   status: string;
@@ -7,9 +8,17 @@ interface Props {
   messages: string[];
   backendUrl?: string;
   lastError?: string | null;
+  onRetry?: () => void;
 }
 
-export default function ProgressPanel({ status, isRunning, messages, backendUrl, lastError }: Props) {
+export default function ProgressPanel({
+  status,
+  isRunning,
+  messages,
+  backendUrl,
+  lastError,
+  onRetry,
+}: Props) {
   return (
     <div className="mt-6 bg-white rounded-md shadow p-4">
       <div className="flex items-center space-x-3">
@@ -29,13 +38,29 @@ export default function ProgressPanel({ status, isRunning, messages, backendUrl,
       <div className="mt-3">
         {backendUrl ? (
           <div className="text-xs text-gray-500 mb-2">
-            Backend: <a href={backendUrl} className="underline">{backendUrl}</a>
+            Backend:{" "}
+            <a href={backendUrl} className="underline">
+              {backendUrl}
+            </a>
           </div>
         ) : null}
         {lastError ? (
           <div className="mb-2 p-2 bg-red-50 border border-red-100 text-sm text-red-700 rounded">
-            <div className="font-medium">Last error</div>
-            <div className="whitespace-pre-wrap text-xs mt-1">{lastError}</div>
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="font-medium">Last error</div>
+                <div className="whitespace-pre-wrap text-xs mt-1">
+                  {lastError}
+                </div>
+              </div>
+              {onRetry ? (
+                <div className="ml-4">
+                  <Button variant="ghost" onClick={onRetry}>
+                    Retry
+                  </Button>
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : null}
         {messages && messages.length ? (

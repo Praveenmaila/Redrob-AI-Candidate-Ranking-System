@@ -138,8 +138,12 @@ export function useRanking() {
     candidatesFile,
     setCandidatesFile,
     startRanking,
+    // alias for manual retry from the UI
+    retry: startRanking,
     isRunning,
     status,
     progressMessages,
+    backendUrl: BASE_URL,
+    lastError,
   };
 }
