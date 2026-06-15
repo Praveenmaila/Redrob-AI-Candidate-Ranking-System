@@ -1,4 +1,21 @@
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
+import sys
+
+# Runtime check: ensure `python-multipart` is importable from the same Python
+# interpreter used to start the server. FastAPI raises a RuntimeError during
+# route analysis if multipart isn't installed; provide a clearer message.
+try:
+    import multipart  # type: ignore
+except Exception:
+    raise RuntimeError(
+        "Missing dependency 'python-multipart'.\n"
+        "Install it into the Python environment you're using to run uvicorn.\n"
+        "Example (with venv activated):\n"
+        f"  {sys.executable} -m pip install python-multipart\n\n"
+        "Then start the server with the same Python interpreter to ensure the\n"
+        "reloader uses the correct environment:\n"
+        f"  {sys.executable} -m uvicorn backend_api:app --reload --host 0.0.0.0 --port 8000\n"
+    )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pathlib import Path
