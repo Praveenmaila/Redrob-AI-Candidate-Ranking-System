@@ -41,19 +41,54 @@ STATE = {"status": "ready", "progressMessage": "idle", "pid": None}
 def run_ranking(candidates_path: Path, jd_path: Path, out_path: Path, extra_args=None):
     STATE["status"] = "running"
     STATE["progressMessage"] = "Starting ranking script"
-    cmd = ["python", str(Path("scripts/generate_submission.py")), "--candidates", str(candidates_path), "--jd", str(jd_path), "--out", str(out_path)]
+    STATE["last_stdout"] = ""
+    STATE["last_stderr"] = ""
+    cmd = [sys.executable, str(Path("scripts/generate_submission.py")), "--candidates", str(candidates_path), "--jd", str(jd_path), "--out", str(out_path)]
     if extra_args:
         cmd.extend(extra_args)
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-        STATE["progressMessage"] = "Finished: returncode=%s" % proc.returncode
-        STATE["status"] = "done" if proc.returncode == 0 else "error"
-        # store last logs
-        STATE["last_stdout"] = proc.stdout
-        STATE["last_stderr"] = proc.stderr
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        STATE["pid"] = proc.pid
+
+        # read stdout/stderr lines and update STATE so frontend can poll progress
+        def stream_reader(pipe, key, prefix=""):
+            try:
+                for line in iter(pipe.readline, ""):
+                    if not line:
+                        break
+                    line = line.rstrip("\n")
+                    # append to last_stdout/last_stderr (keep last ~2000 chars)
+                    prev = STATE.get(key, "")
+                    prev = (prev + "\n" + line)[-2000:]
+                    STATE[key] = prev
+                    STATE["progressMessage"] = prefix + line
+            finally:
+                try:
+                    pipe.close()
+                except Exception:
+                    pass
+
+        threads = []
+        if proc.stdout:
+            t = threading.Thread(target=stream_reader, args=(proc.stdout, "last_stdout", "") , daemon=True)
+            t.start()
+            threads.append(t)
+        if proc.stderr:
+            t2 = threading.Thread(target=stream_reader, args=(proc.stderr, "last_stderr", "ERR: "), daemon=True)
+            t2.start()
+            threads.append(t2)
+
+        ret = proc.wait()
+        # wait briefly for readers to finish
+        for t in threads:
+            t.join(timeout=0.5)
+
+        STATE["progressMessage"] = f"Finished: returncode={ret}"
+        STATE["status"] = "done" if ret == 0 else "error"
     except Exception as e:
         STATE["status"] = "error"
         STATE["progressMessage"] = f"Exception: {e}"
+        STATE["last_stderr"] = STATE.get("last_stderr", "") + f"\nException: {e}"
 
 
 @app.post("/rank")
@@ -81,7 +116,14 @@ async def rank(jd: UploadFile = File(...), candidates: UploadFile = File(...)):
 
 @app.get("/health")
 def health():
-    return JSONResponse({"status": STATE.get("status", "unknown"), "progressMessage": STATE.get("progressMessage", "")})
+    # return recent logs (truncated) to help debugging
+    return JSONResponse({
+        "status": STATE.get("status", "unknown"),
+        "progressMessage": STATE.get("progressMessage", ""),
+        "pid": STATE.get("pid"),
+        "last_stdout_tail": STATE.get("last_stdout", "")[-2000:],
+        "last_stderr_tail": STATE.get("last_stderr", "")[-2000:],
+    })
 
 
 @app.get("/download")
