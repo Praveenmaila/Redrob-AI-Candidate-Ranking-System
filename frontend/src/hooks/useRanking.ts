@@ -53,10 +53,15 @@ export function useRanking() {
       };
       setTimeout(poll, 1500);
     } catch (e: any) {
-      setProgressMessages((prev) => [
-        ...prev,
-        "Failed to start ranking: " + (e.message || String(e)),
-      ]);
+      let msg = "Failed to start ranking: " + (e.message || String(e));
+      // axios error with response
+      if (e?.response?.status) {
+        msg += ` (status ${e.response.status})`;
+        if (e.response.status === 404) {
+          msg += " — backend endpoint not found. Is the backend server running at http://localhost:8000 ?";
+        }
+      }
+      setProgressMessages((prev) => [...prev, msg]);
       setIsRunning(false);
       setStatus("Failed");
     }
