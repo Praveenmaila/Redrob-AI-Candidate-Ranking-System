@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "../components/shadcn";
 
 interface Props {
@@ -19,6 +19,11 @@ export default function ProgressPanel({
   lastError,
   onRetry,
 }: Props) {
+  const [visibleBackendUrl, setVisibleBackendUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (backendUrl) setVisibleBackendUrl(backendUrl);
+  }, [backendUrl]);
+
   return (
     <div className="mt-6 bg-white rounded-md shadow p-4">
       <div className="flex items-center space-x-3">
@@ -36,12 +41,9 @@ export default function ProgressPanel({
       </div>
 
       <div className="mt-3">
-        {backendUrl ? (
+        {visibleBackendUrl ? (
           <div className="text-xs text-gray-500 mb-2">
-            Backend:{" "}
-            <a href={backendUrl} className="underline">
-              {backendUrl}
-            </a>
+            Backend: <a href={visibleBackendUrl} className="underline" target="_blank" rel="noreferrer">{visibleBackendUrl}</a>
           </div>
         ) : null}
         {lastError ? (
