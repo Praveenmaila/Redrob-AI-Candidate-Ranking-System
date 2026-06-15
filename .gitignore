@@ -1,3 +1,30 @@
+# General
+.DS_Store
+*.log
+__pycache__/
+*.pyc
+
+# Python virtualenv
+.venv/
+venv/
+
+# Frontend (Next.js)
+/frontend/.next/
+/frontend/.next/**
+/frontend/node_modules/
+/frontend/package-lock.json
+/frontend/yarn.lock
+/frontend/pnpm-lock.yaml
+/frontend/next-env.d.ts
+/frontend/.env.local
+/frontend/.vercel/
+/frontend/dist/
+/frontend/.parcel-cache/
+/frontend/.turbo/
+
+# IDEs
+/.vscode/
+.idea/
 venv/
 __pycache__/
 *.pyc
