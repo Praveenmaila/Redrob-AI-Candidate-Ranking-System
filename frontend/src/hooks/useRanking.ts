@@ -58,7 +58,8 @@ export function useRanking() {
       if (e?.response?.status) {
         msg += ` (status ${e.response.status})`;
         if (e.response.status === 404) {
-          msg += " — backend endpoint not found. Is the backend server running at http://localhost:8000 ?";
+          msg +=
+            " — backend endpoint not found. Is the backend server running at http://localhost:8000 ?";
         }
       }
       setProgressMessages((prev) => [...prev, msg]);
