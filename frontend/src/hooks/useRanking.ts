@@ -17,15 +17,69 @@ export function useRanking() {
     setProgressMessages(["Uploading files..."]);
     setLastError(null);
 
+    // upload with automatic retries for transient network errors
+    const maxUploadAttempts = 3;
+    const uploadBaseDelay = 1000; // ms
+
+    function isTransientError(err: any) {
+      if (!err) return false;
+      // network error (no response)
+      if (!err.response) return true;
+      const st = err.response.status;
+      return [429, 502, 503, 504].includes(st);
+    }
+
     try {
       const fd = new FormData();
       fd.append("jd", jdFile);
       fd.append("candidates", candidatesFile);
 
-      const res = await api.post("/rank", fd);
+      let uploaded = false;
+      let attempt = 0;
+      let lastUploadErr: any = null;
+      while (!uploaded && attempt < maxUploadAttempts) {
+        attempt += 1;
+        try {
+          await api.post("/rank", fd);
+          uploaded = true;
+        } catch (err: any) {
+          lastUploadErr = err;
+          const transient = isTransientError(err);
+          const msg = `Upload attempt ${attempt} failed${transient ? " (transient)" : ""}: ${err?.message || String(err)}`;
+          setProgressMessages((prev) => [...prev, msg]);
+          if (!transient || attempt >= maxUploadAttempts) break;
+          const delay = uploadBaseDelay * Math.pow(2, attempt - 1);
+          await new Promise((res) => setTimeout(res, delay));
+        }
+      }
 
-      // start polling status
+      if (!uploaded) {
+        // surface detailed error
+        let msg =
+          "Failed to start ranking: " +
+          (lastUploadErr?.message || String(lastUploadErr));
+        try {
+          if (lastUploadErr?.config?.url)
+            msg += ` | url=${lastUploadErr.config.url}`;
+          if (lastUploadErr?.response?.status)
+            msg += ` | status=${lastUploadErr.response.status}`;
+          if (lastUploadErr?.response?.data)
+            msg += ` | data=${JSON.stringify(lastUploadErr.response.data).slice(0, 500)}`;
+        } catch (err) {}
+        if (lastUploadErr?.response?.status === 404) {
+          msg += ` — backend endpoint not found. Is the backend server running at ${BASE_URL} ?`;
+        }
+        setProgressMessages((prev) => [...prev, msg]);
+        setLastError(msg);
+        setIsRunning(false);
+        setStatus("Failed");
+        return;
+      }
+
+      // start polling status with retry tolerance for transient poll failures
       setStatus("Analyzing candidates...");
+      let pollErrors = 0;
+      const maxPollErrors = 6;
       const poll = async () => {
         try {
           const s = await api.get("/health");
@@ -41,13 +95,24 @@ export function useRanking() {
           ) {
             setIsRunning(false);
             setStatus("Completed");
-            // navigate to results
             window.location.href = "/results";
             return;
           }
-        } catch (e) {
-          // ignore polling error
-          setProgressMessages((prev) => [...prev.slice(-10), "Polling error"]);
+          pollErrors = 0;
+        } catch (e: any) {
+          pollErrors += 1;
+          setProgressMessages((prev) => [
+            ...prev.slice(-10),
+            `Polling error (#${pollErrors}): ${e?.message || String(e)}`,
+          ]);
+          if (pollErrors >= maxPollErrors) {
+            const msg = `Polling failed ${pollErrors} times; aborting.`;
+            setProgressMessages((prev) => [...prev, msg]);
+            setLastError(msg);
+            setIsRunning(false);
+            setStatus("Failed");
+            return;
+          }
         }
         setTimeout(poll, 2000);
       };
@@ -57,13 +122,9 @@ export function useRanking() {
       try {
         if (e?.config?.url) msg += ` | url=${e.config.url}`;
         if (e?.response?.status) msg += ` | status=${e.response.status}`;
-        if (e?.response?.data) msg += ` | data=${JSON.stringify(e.response.data).slice(0,500)}`;
-      } catch (err) {
-        /* ignore stringify errors */
-      }
-      if (e?.response?.status === 404) {
-        msg += ` — backend endpoint not found. Is the backend server running at ${BASE_URL} ?`;
-      }
+        if (e?.response?.data)
+          msg += ` | data=${JSON.stringify(e.response.data).slice(0, 500)}`;
+      } catch (err) {}
       setProgressMessages((prev) => [...prev, msg]);
       setLastError(msg);
       setIsRunning(false);
