@@ -1,101 +1,101 @@
 candidate_id,rank,score,reasoning
-CAND_0018499,1,0.8064,"Senior Machine Learning Engineer with 7.2 yrs; Strengths: 5 AI skills, strong assessments (83), github activity 94, high recruiter response 61%."
-CAND_0011687,2,0.7660,"Senior NLP Engineer with 7.8 yrs; Strengths: 3 AI skills, strong assessments (78), github activity 76, high recruiter response 89%."
-CAND_0053591,3,0.7513,"AI Engineer with 5.3 yrs; Strengths: 4 AI skills, strong assessments (90), github activity 75, high recruiter response 81%."
-CAND_0086022,4,0.7498,"Senior Applied Scientist with 5.3 yrs; Strengths: 6 AI skills, strong assessments (84), github activity 75."
-CAND_0039754,5,0.7478,"Senior Applied Scientist with 16.2 yrs; Strengths: 2 AI skills, strong assessments (76), github activity 77, high recruiter response 81%."
-CAND_0037566,6,0.7420,"Machine Learning Engineer with 6.9 yrs; Strengths: 3 AI skills, strong assessments (82), github activity 73."
-CAND_0071974,7,0.7420,"Senior AI Engineer with 7.8 yrs; Strengths: 5 AI skills, strong assessments (80), github activity 82, high recruiter response 76%."
-CAND_0088025,8,0.7414,"Staff Machine Learning Engineer with 8.6 yrs; Strengths: 4 AI skills, strong assessments (90), github activity 74, high recruiter response 83%."
-CAND_0077337,9,0.7361,"Staff Machine Learning Engineer with 7.0 yrs; Strengths: 5 AI skills, github activity 68, high recruiter response 95%."
-CAND_0099806,10,0.7288,"AI Engineer with 4.6 yrs; Strengths: 4 AI skills, github activity 86, high recruiter response 76%."
-CAND_0066999,11,0.7259,"Recommendation Systems Engineer with 5.9 yrs; Strengths: 5 AI skills, github activity 94, high recruiter response 63%."
-CAND_0052328,12,0.7245,"Recommendation Systems Engineer with 6.5 yrs; Strengths: 3 AI skills, strong assessments (76), github activity 77, high recruiter response 79%."
-CAND_0052682,13,0.7196,"NLP Engineer with 6.6 yrs; Strengths: 4 AI skills, github activity 72, high recruiter response 88%."
-CAND_0042506,14,0.7177,"Search Engineer with 4.2 yrs; Strengths: 3 AI skills, strong assessments (74), github activity 64."
-CAND_0076482,15,0.7177,"ML Engineer with 6.6 yrs; Strengths: 4 AI skills, strong assessments (81), github activity 79, high recruiter response 86%."
-CAND_0093912,16,0.7171,"Senior Data Scientist with 5.3 yrs; Strengths: 2 AI skills, strong assessments (75), github activity 81, high recruiter response 66%."
-CAND_0020708,17,0.7131,"Search Engineer with 4.2 yrs; Strengths: 4 AI skills, github activity 84, high recruiter response 84%."
-CAND_0046525,18,0.7128,"Senior Machine Learning Engineer with 6.1 yrs; Strengths: 4 AI skills, strong assessments (85), github activity 36, high recruiter response 88%."
-CAND_0079387,19,0.7122,"AI Engineer with 6.9 yrs; Strengths: 2 AI skills, github activity 64, high recruiter response 81%."
-CAND_0036184,20,0.7115,"Recommendation Systems Engineer with 6.0 yrs; Strengths: 7 AI skills, github activity 43, high recruiter response 90%."
-CAND_0040887,21,0.7114,"Machine Learning Engineer with 4.7 yrs; Strengths: 2 AI skills, strong assessments (71), github activity 34, high recruiter response 84%."
-CAND_0026942,22,0.7107,"Junior ML Engineer with 6.0 yrs; Strengths: 2 AI skills, github activity 67, high recruiter response 84%."
-CAND_0076163,23,0.7098,"NLP Engineer with 6.9 yrs; Strengths: 2 AI skills, strong assessments (70), github activity 84, high recruiter response 84%."
-CAND_0054100,24,0.7083,"Junior ML Engineer with 6.0 yrs; Strengths: 3 AI skills, strong assessments (71), github activity 73, high recruiter response 79%."
-CAND_0080534,25,0.7034,"ML Engineer with 3.8 yrs; Strengths: 2 AI skills, github activity 81, high recruiter response 91%."
-CAND_0096142,26,0.7032,"Applied ML Engineer with 5.0 yrs; Strengths: 3 AI skills, strong assessments (86), github activity 80, high recruiter response 84%."
-CAND_0095619,27,0.7024,"NLP Engineer with 15.6 yrs; Strengths: 5 AI skills, github activity 29, high recruiter response 90%."
-CAND_0055992,28,0.7017,"AI Engineer with 16.9 yrs; Strengths: 6 AI skills, strong assessments (71), github activity 65, high recruiter response 72%."
-CAND_0041669,29,0.7013,"Recommendation Systems Engineer with 8.0 yrs; Strengths: 2 AI skills, strong assessments (80), github activity 70, high recruiter response 77%."
-CAND_0083852,30,0.6990,"Data Scientist with 6.0 yrs; Strengths: 3 AI skills, github activity 70, high recruiter response 85%."
-CAND_0045887,31,0.6962,"Data Scientist with 3.0 yrs; Strengths: 3 AI skills, github activity 36, high recruiter response 86%."
-CAND_0065195,32,0.6946,"Search Engineer with 5.1 yrs; Strengths: 2 AI skills, github activity 87, high recruiter response 80%."
-CAND_0070514,33,0.6921,"AI Specialist with 5.5 yrs; Strengths: 2 AI skills, strong assessments (82), github activity 40, high recruiter response 80%."
-CAND_0050553,34,0.6905,"ML Engineer with 3.6 yrs; Strengths: 1 AI skills, github activity 70, high recruiter response 95%."
-CAND_0044213,35,0.6904,"AI Specialist with 3.7 yrs; Strengths: 3 AI skills, github activity 69, high recruiter response 89%."
-CAND_0032887,36,0.6903,"ML Engineer with 6.1 yrs; Strengths: 1 AI skills, strong assessments (74), github activity 51, high recruiter response 81%."
-CAND_0052195,37,0.6893,"Computer Vision Engineer with 6.3 yrs; Strengths: 2 AI skills, github activity 71, high recruiter response 69%."
-CAND_0038806,38,0.6887,"DevOps Engineer with 10.0 yrs; Strengths: strong assessments (74), github activity 44, high recruiter response 78%."
-CAND_0082086,39,0.6882,"Senior Software Engineer (ML) with 6.0 yrs; Strengths: 2 AI skills, github activity 82, high recruiter response 85%."
-CAND_0065786,40,0.6877,"AI Specialist with 4.9 yrs; Strengths: 1 AI skills, github activity 70, high recruiter response 89%."
-CAND_0077296,41,0.6875,"Computer Vision Engineer with 5.8 yrs; Strengths: 1 AI skills, github activity 76."
-CAND_0091909,42,0.6873,"Machine Learning Engineer with 6.9 yrs; Strengths: 5 AI skills, strong assessments (87), github activity 49, high recruiter response 65%."
-CAND_0043384,43,0.6868,"Computer Vision Engineer with 5.2 yrs; Strengths: 2 AI skills, strong assessments (74), github activity 63, high recruiter response 83%."
-CAND_0098454,44,0.6866,"AI Specialist with 6.6 yrs; Strengths: 3 AI skills, strong assessments (71), github activity 28, high recruiter response 87%."
-CAND_0066690,45,0.6856,"ML Engineer with 4.8 yrs; Strengths: 3 AI skills, github activity 38, high recruiter response 88%."
-CAND_0043860,46,0.6854,"Junior ML Engineer with 6.1 yrs; Strengths: 2 AI skills, strong assessments (71), high recruiter response 81%."
-CAND_0058688,47,0.6841,"AI Engineer with 6.7 yrs; Strengths: 2 AI skills, github activity 39, high recruiter response 74%."
-CAND_0055905,48,0.6835,"Senior Machine Learning Engineer with 8.1 yrs; Strengths: 7 AI skills, high recruiter response 87%."
-CAND_0064326,49,0.6827,"Search Engineer with 7.6 yrs; Strengths: 1 AI skills, github activity 61, high recruiter response 94%."
-CAND_0073314,50,0.6814,"Senior Software Engineer (ML) with 5.2 yrs; Strengths: strong assessments (74), github activity 67, high recruiter response 84%."
-CAND_0046064,51,0.6811,"Senior NLP Engineer with 8.9 yrs; Strengths: 1 AI skills, github activity 67, high recruiter response 78%."
-CAND_0079550,52,0.6808,"AI Specialist with 3.9 yrs; Strengths: 2 AI skills, github activity 75, high recruiter response 88%."
-CAND_0037980,53,0.6805,"Senior Applied Scientist with 9.0 yrs; Strengths: strong assessments (73), github activity 30, high recruiter response 63%."
-CAND_0081846,54,0.6805,"Lead AI Engineer with 6.7 yrs; Strengths: 3 AI skills, github activity 33, high recruiter response 73%."
-CAND_0086154,55,0.6802,"Data Scientist with 6.8 yrs; Strengths: strong assessments (82), github activity 53, high recruiter response 90%."
-CAND_0005538,56,0.6801,"Senior AI Engineer with 5.9 yrs; Strengths: strong assessments (93), github activity 58, high recruiter response 81%."
-CAND_0068932,57,0.6800,"ML Engineer with 5.2 yrs; Strengths: 1 AI skills, github activity 70, high recruiter response 82%."
-CAND_0007567,58,0.6795,"AI Specialist with 6.1 yrs; Strengths: 4 AI skills, strong assessments (77), github activity 51, high recruiter response 80%."
-CAND_0016163,59,0.6795,"Applied ML Engineer with 6.7 yrs; Strengths: 3 AI skills, strong assessments (79), github activity 95, high recruiter response 72%."
-CAND_0011643,60,0.6794,"AI Research Engineer with 4.2 yrs; Strengths: 3 AI skills, strong assessments (75), github activity 84, high recruiter response 85%."
-CAND_0002120,61,0.6793,"ML Engineer with 6.5 yrs; Strengths: 5 AI skills, github activity 50, high recruiter response 72%."
-CAND_0064888,62,0.6789,"ML Engineer with 5.8 yrs; Strengths: 2 AI skills, strong assessments (80), github activity 17, high recruiter response 92%."
-CAND_0000031,63,0.6786,"Recommendation Systems Engineer with 6.0 yrs; Strengths: 6 AI skills, github activity 32, high recruiter response 91%."
-CAND_0016659,64,0.6781,"ML Engineer with 4.4 yrs; Strengths: 4 AI skills, github activity 13, high recruiter response 89%."
-CAND_0037944,65,0.6779,"Senior Data Scientist with 4.9 yrs; Strengths: 4 AI skills, strong assessments (84), github activity 83."
-CAND_0028793,66,0.6773,"Search Engineer with 7.2 yrs; Strengths: 2 AI skills, strong assessments (80), github activity 83."
-CAND_0002344,67,0.6770,"Senior Software Engineer (ML) with 4.7 yrs; Strengths: 4 AI skills, github activity 82, high recruiter response 83%."
-CAND_0099347,68,0.6759,"Computer Vision Engineer with 3.5 yrs; Strengths: 2 AI skills, strong assessments (74), github activity 56, high recruiter response 86%."
-CAND_0038206,69,0.6752,"Data Scientist with 3.5 yrs; Strengths: 3 AI skills, github activity 82, high recruiter response 81%."
-CAND_0091534,70,0.6750,"AI Engineer with 16.6 yrs; Strengths: 4 AI skills, strong assessments (75), github activity 66, high recruiter response 84%."
-CAND_0002025,71,0.6745,"Senior AI Engineer with 5.9 yrs; Strengths: 5 AI skills, github activity 96, high recruiter response 80%."
-CAND_0030468,72,0.6745,"Senior Applied Scientist with 5.4 yrs; Strengths: strong assessments (83), github activity 45, high recruiter response 78%."
-CAND_0077498,73,0.6740,"Senior Software Engineer (ML) with 5.4 yrs; Strengths: 2 AI skills, github activity 57, high recruiter response 89%."
-CAND_0097176,74,0.6740,"ML Engineer with 5.9 yrs; Strengths: 2 AI skills, strong assessments (73), github activity 45, high recruiter response 76%."
-CAND_0087744,75,0.6737,"Senior Software Engineer (ML) with 3.9 yrs; Strengths: 4 AI skills, github activity 28, high recruiter response 88%."
-CAND_0073883,76,0.6733,"AI Specialist with 5.3 yrs; Strengths: 3 AI skills, github activity 65, high recruiter response 92%."
-CAND_0006418,77,0.6729,"Machine Learning Engineer with 5.7 yrs; Strengths: 1 AI skills, strong assessments (89), github activity 59, high recruiter response 92%."
-CAND_0008295,78,0.6711,"AI Research Engineer with 6.5 yrs; Strengths: github activity 50, high recruiter response 89%."
-CAND_0018549,79,0.6693,"Recommendation Systems Engineer with 6.8 yrs; Strengths: 2 AI skills, strong assessments (72), github activity 56, high recruiter response 73%."
-CAND_0024990,80,0.6690,"Junior ML Engineer with 5.2 yrs; Strengths: 1 AI skills, github activity 80, high recruiter response 83%."
-CAND_0054546,81,0.6687,"AI Research Engineer with 4.9 yrs; Strengths: 1 AI skills, strong assessments (76), github activity 75, high recruiter response 92%."
-CAND_0003791,82,0.6681,"ML Engineer with 6.6 yrs; Strengths: 2 AI skills, strong assessments (73), github activity 57, high recruiter response 66%."
-CAND_0039383,83,0.6677,"Applied ML Engineer with 7.1 yrs; Strengths: 3 AI skills, github activity 86, high recruiter response 61%."
-CAND_0092706,84,0.6669,"AI Research Engineer with 5.8 yrs; Strengths: 3 AI skills, github activity 65, high recruiter response 78%."
-CAND_0074735,85,0.6667,"Applied ML Engineer with 5.5 yrs; Strengths: 3 AI skills, github activity 87, high recruiter response 77%."
-CAND_0061265,86,0.6664,"Recommendation Systems Engineer with 6.6 yrs; Strengths: 4 AI skills, strong assessments (77), github activity 79, high recruiter response 94%."
-CAND_0017918,87,0.6660,"ML Engineer with 3.2 yrs; Strengths: 2 AI skills, strong assessments (82), github activity 47, high recruiter response 67%."
-CAND_0081480,88,0.6658,"Computer Vision Engineer with 5.6 yrs; Strengths: 3 AI skills, strong assessments (77), github activity 61, high recruiter response 85%."
-CAND_0036121,89,0.6645,"ML Engineer with 5.2 yrs; Strengths: 3 AI skills, strong assessments (71), github activity 82."
-CAND_0027691,90,0.6643,"NLP Engineer with 6.5 yrs; Strengths: 1 AI skills, github activity 58, high recruiter response 68%."
-CAND_0013536,91,0.6626,"Applied ML Engineer with 14.1 yrs; Strengths: 5 AI skills, strong assessments (75), github activity 51, high recruiter response 87%."
-CAND_0041610,92,0.6624,"Recommendation Systems Engineer with 6.7 yrs; Strengths: 2 AI skills, github activity 52."
-CAND_0070525,93,0.6620,"Senior Software Engineer (ML) with 5.4 yrs; Strengths: 2 AI skills, github activity 18, high recruiter response 93%."
-CAND_0075715,94,0.6620,"Data Scientist with 3.5 yrs; Strengths: 3 AI skills, strong assessments (73), github activity 63, high recruiter response 62%."
-CAND_0035879,95,0.6618,"AI Research Engineer with 4.5 yrs; Strengths: 1 AI skills, strong assessments (79), github activity 84, high recruiter response 82%."
-CAND_0023215,96,0.6613,"Junior ML Engineer with 4.4 yrs; Strengths: 3 AI skills, github activity 83."
-CAND_0061257,97,0.6613,"Staff Machine Learning Engineer with 8.0 yrs; Strengths: github activity 45, high recruiter response 87%."
-CAND_0049538,98,0.6603,"Applied ML Engineer with 5.8 yrs; Strengths: 3 AI skills, strong assessments (71), github activity 90, high recruiter response 72%."
-CAND_0006567,99,0.6598,"Senior AI Engineer with 7.9 yrs; Strengths: strong assessments (76), github activity 35, high recruiter response 79%."
-CAND_0049831,100,0.6598,"Computer Vision Engineer with 5.4 yrs; Strengths: 3 AI skills, github activity 83."
+CAND_0000165,1,0.7466,Combined semantic+signals
+CAND_0000031,2,0.7079,Combined semantic+signals
+CAND_0000273,3,0.6940,Combined semantic+signals
+CAND_0000200,4,0.6886,Combined semantic+signals
+CAND_0000422,5,0.6835,Combined semantic+signals
+CAND_0000112,6,0.6682,Combined semantic+signals
+CAND_0000110,7,0.6642,Combined semantic+signals
+CAND_0000354,8,0.6501,Combined semantic+signals
+CAND_0000062,9,0.6481,Combined semantic+signals
+CAND_0000001,10,0.6322,Combined semantic+signals
+CAND_0000345,11,0.6293,Combined semantic+signals
+CAND_0000331,12,0.6257,Combined semantic+signals
+CAND_0000499,13,0.6246,Combined semantic+signals
+CAND_0000184,14,0.6244,Combined semantic+signals
+CAND_0000225,15,0.6237,Combined semantic+signals
+CAND_0000361,16,0.6206,Combined semantic+signals
+CAND_0000198,17,0.6175,Combined semantic+signals
+CAND_0000116,18,0.6166,Combined semantic+signals
+CAND_0000302,19,0.6152,Combined semantic+signals
+CAND_0000027,20,0.6132,Combined semantic+signals
+CAND_0000024,21,0.6123,Combined semantic+signals
+CAND_0000201,22,0.6100,Combined semantic+signals
+CAND_0000068,23,0.6094,Combined semantic+signals
+CAND_0000249,24,0.6056,Combined semantic+signals
+CAND_0000075,25,0.6054,Combined semantic+signals
+CAND_0000292,26,0.6053,Combined semantic+signals
+CAND_0000063,27,0.6042,Combined semantic+signals
+CAND_0000220,28,0.6041,Combined semantic+signals
+CAND_0000426,29,0.6041,Combined semantic+signals
+CAND_0000185,30,0.6028,Combined semantic+signals
+CAND_0000452,31,0.6024,Combined semantic+signals
+CAND_0000025,32,0.6021,Combined semantic+signals
+CAND_0000187,33,0.6020,Combined semantic+signals
+CAND_0000417,34,0.6012,Combined semantic+signals
+CAND_0000099,35,0.5991,Combined semantic+signals
+CAND_0000280,36,0.5978,Combined semantic+signals
+CAND_0000352,37,0.5972,Combined semantic+signals
+CAND_0000410,38,0.5969,Combined semantic+signals
+CAND_0000442,39,0.5969,Combined semantic+signals
+CAND_0000486,40,0.5939,Combined semantic+signals
+CAND_0000370,41,0.5935,Combined semantic+signals
+CAND_0000323,42,0.5931,Combined semantic+signals
+CAND_0000390,43,0.5928,Combined semantic+signals
+CAND_0000394,44,0.5916,Combined semantic+signals
+CAND_0000082,45,0.5905,Combined semantic+signals
+CAND_0000010,46,0.5899,Combined semantic+signals
+CAND_0000088,47,0.5898,Combined semantic+signals
+CAND_0000492,48,0.5864,Combined semantic+signals
+CAND_0000317,49,0.5858,Combined semantic+signals
+CAND_0000343,50,0.5858,Combined semantic+signals
+CAND_0000190,51,0.5853,Combined semantic+signals
+CAND_0000321,52,0.5853,Combined semantic+signals
+CAND_0000489,53,0.5852,Combined semantic+signals
+CAND_0000134,54,0.5849,Combined semantic+signals
+CAND_0000202,55,0.5842,Combined semantic+signals
+CAND_0000210,56,0.5837,Combined semantic+signals
+CAND_0000477,57,0.5837,Combined semantic+signals
+CAND_0000487,58,0.5837,Combined semantic+signals
+CAND_0000444,59,0.5827,Combined semantic+signals
+CAND_0000020,60,0.5821,Combined semantic+signals
+CAND_0000242,61,0.5817,Combined semantic+signals
+CAND_0000179,62,0.5816,Combined semantic+signals
+CAND_0000458,63,0.5815,Combined semantic+signals
+CAND_0000131,64,0.5814,Combined semantic+signals
+CAND_0000073,65,0.5811,Combined semantic+signals
+CAND_0000136,66,0.5808,Combined semantic+signals
+CAND_0000312,67,0.5808,Combined semantic+signals
+CAND_0000274,68,0.5804,Combined semantic+signals
+CAND_0000023,69,0.5803,Combined semantic+signals
+CAND_0000427,70,0.5793,Combined semantic+signals
+CAND_0000114,71,0.5784,Combined semantic+signals
+CAND_0000137,72,0.5783,Combined semantic+signals
+CAND_0000186,73,0.5783,Combined semantic+signals
+CAND_0000411,74,0.5777,Combined semantic+signals
+CAND_0000494,75,0.5771,Combined semantic+signals
+CAND_0000313,76,0.5769,Combined semantic+signals
+CAND_0000285,77,0.5764,Combined semantic+signals
+CAND_0000051,78,0.5760,Combined semantic+signals
+CAND_0000014,79,0.5751,Combined semantic+signals
+CAND_0000148,80,0.5751,Combined semantic+signals
+CAND_0000376,81,0.5751,Combined semantic+signals
+CAND_0000087,82,0.5729,Combined semantic+signals
+CAND_0000211,83,0.5727,Combined semantic+signals
+CAND_0000322,84,0.5727,Combined semantic+signals
+CAND_0000083,85,0.5725,Combined semantic+signals
+CAND_0000250,86,0.5724,Combined semantic+signals
+CAND_0000167,87,0.5723,Combined semantic+signals
+CAND_0000415,88,0.5717,Combined semantic+signals
+CAND_0000406,89,0.5714,Combined semantic+signals
+CAND_0000268,90,0.5703,Combined semantic+signals
+CAND_0000222,91,0.5702,Combined semantic+signals
+CAND_0000252,92,0.5702,Combined semantic+signals
+CAND_0000203,93,0.5701,Combined semantic+signals
+CAND_0000360,94,0.5701,Combined semantic+signals
+CAND_0000315,95,0.5698,Combined semantic+signals
+CAND_0000155,96,0.5695,Combined semantic+signals
+CAND_0000038,97,0.5692,Combined semantic+signals
+CAND_0000159,98,0.5691,Combined semantic+signals
+CAND_0000500,99,0.5689,Combined semantic+signals
+CAND_0000498,100,0.5688,Combined semantic+signals

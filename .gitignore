@@ -42,3 +42,4 @@ out_semantic.txt
 submission_top100_full.csv
 submission_top100_small.csv
 scripts/e2e_small_metrics.json
+.uploads/
