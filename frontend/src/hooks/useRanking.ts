@@ -20,9 +20,7 @@ export function useRanking() {
       fd.append("jd", jdFile);
       fd.append("candidates", candidatesFile);
 
-      const res = await api.post("/rank", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await api.post("/rank", fd);
 
       // start polling status
       setStatus("Analyzing candidates...");
