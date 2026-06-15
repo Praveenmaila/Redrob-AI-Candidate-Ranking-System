@@ -98,6 +98,12 @@ export function useRanking() {
             window.location.href = "/results";
             return;
           }
+          if (data.status === "error") {
+            setIsRunning(false);
+            setStatus("Failed");
+            setLastError(data.progressMessage || "Ranking failed on the backend");
+            return;
+          }
           pollErrors = 0;
         } catch (e: any) {
           pollErrors += 1;

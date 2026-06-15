@@ -7,7 +7,7 @@ and avoid any external dependencies beyond the Python stdlib and numpy.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import math
 from typing import Dict, Optional
 
@@ -32,7 +32,7 @@ def _days_since(date_str: Optional[str]) -> Optional[int]:
             dt = datetime.strptime(date_str, "%Y-%m-%d")
         except Exception:
             return None
-    delta = datetime.utcnow() - dt
+    delta = datetime.now(timezone.utc) - dt.replace(tzinfo=timezone.utc)
     return max(0, delta.days)
 
 

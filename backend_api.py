@@ -24,6 +24,8 @@ import subprocess
 import time
 import os
 
+PROJECT_ROOT = Path(__file__).resolve().parent
+
 app = FastAPI()
 
 # allow CORS from local dev frontend
@@ -43,7 +45,7 @@ def run_ranking(candidates_path: Path, jd_path: Path, out_path: Path, extra_args
     STATE["progressMessage"] = "Starting ranking script"
     STATE["last_stdout"] = ""
     STATE["last_stderr"] = ""
-    cmd = [sys.executable, str(Path("scripts/generate_submission.py")), "--candidates", str(candidates_path), "--jd", str(jd_path), "--out", str(out_path)]
+    cmd = [sys.executable, str(PROJECT_ROOT / "scripts" / "generate_submission.py"), "--candidates", str(candidates_path), "--jd", str(jd_path), "--out", str(out_path)]
     if extra_args:
         cmd.extend(extra_args)
     try:

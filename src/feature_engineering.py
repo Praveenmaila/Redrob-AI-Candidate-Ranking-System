@@ -277,12 +277,12 @@ RETRIEVAL_SKILLS = {
 
 def extract_features(candidate):
 
-    profile = candidate["profile"]
-    signals = candidate["redrob_signals"]
+    profile = candidate.get("profile", {}) or {}
+    signals = candidate.get("redrob_signals", {}) or {}
 
     skills = {
-        s["name"]
-        for s in candidate["skills"]
+        s.get("name", "")
+        for s in (candidate.get("skills") or [])
     }
 
     ai_count = len(
@@ -294,19 +294,23 @@ def extract_features(candidate):
     )
 
     job_count = len(
-        candidate["career_history"]
+        candidate.get("career_history", [])
     )
 
-    years = profile["years_of_experience"]
+    years = profile.get("years_of_experience", 0)
+    try:
+        years = float(years)
+    except (TypeError, ValueError):
+        years = 0.0
 
     durations = [
         s.get("duration_months", 0)
-        for s in candidate["skills"]
+        for s in (candidate.get("skills") or [])
     ]
 
-    assessments = signals[
-        "skill_assessment_scores"
-    ]
+    assessments = signals.get(
+        "skill_assessment_scores", {}
+    ) or {}
 
     avg_assessment = (
         sum(assessments.values()) /
@@ -327,35 +331,35 @@ def extract_features(candidate):
         "github_score":
         max(
             0,
-            signals[
-                "github_activity_score"
-            ]
+            signals.get(
+                "github_activity_score", 0
+            ) or 0
         ),
 
         "response_rate":
-        signals[
-            "recruiter_response_rate"
-        ],
+        signals.get(
+            "recruiter_response_rate", 0
+        ),
 
         "profile_completeness":
-        signals[
-            "profile_completeness_score"
-        ],
+        signals.get(
+            "profile_completeness_score", 0
+        ),
 
         "notice_period":
-        signals[
-            "notice_period_days"
-        ],
+        signals.get(
+            "notice_period_days", 0
+        ),
 
         "saved_by_recruiters":
-        signals[
-            "saved_by_recruiters_30d"
-        ],
+        signals.get(
+            "saved_by_recruiters_30d", 0
+        ),
 
         "interview_completion":
-        signals[
-            "interview_completion_rate"
-        ],
+        signals.get(
+            "interview_completion_rate", 0
+        ),
 
         "avg_assessment":
         avg_assessment,
@@ -377,9 +381,10 @@ def extract_features(candidate):
 
         "open_to_work":
         int(
-            signals[
-                "open_to_work_flag"
-            ]
+            signals.get(
+                "open_to_work_flag", False
+            ) or False
         )
     }
+
     

@@ -3,7 +3,7 @@ scipy>=1.10.0
 pandas>=2.0.0
 scikit-learn>=1.2.0
 sentence-transformers>=2.2.2
-huggingface-hub==0.13.4
+huggingface-hub>=0.15.0
 torch>=2.2.0
 PyYAML>=6.0
 jsonschema>=4.17.3
@@ -14,4 +14,5 @@ scikit-image>=0.20.0
 # Lightweight API server for the frontend
 fastapi>=0.95.0
 uvicorn[standard]>=0.22.0
+python-multipart>=0.0.9
 

@@ -156,15 +156,51 @@ def build_candidate_embeddings(
             try:
                 with open(meta_path, "r", encoding="utf-8") as f:
                     meta = json.load(f)
-                if meta.get("candidate_ids") == candidate_ids and meta.get("model_name") == model_name:
-                    # load embeddings
-                    npz = np.load(npz_path)
-                    emb = npz["embeddings"]
-                    logger.info("Loaded embeddings from cache %s", npz_path)
-                    results[field] = {"embeddings": emb, "candidate_ids": candidate_ids}
-                    continue
+
+                # Validate candidate ids match first
+                if meta.get("candidate_ids") != candidate_ids:
+                    logger.info("Cache candidate id mismatch for %s, recomputing embeddings", field)
                 else:
-                    logger.info("Cache mismatch for %s, recomputing embeddings", field)
+                    # Determine backend/dimension compatibility
+                    meta_backend = meta.get("backend")
+                    meta_dim = meta.get("dim")
+                    if HAS_ST:
+                        # If we have sentence-transformers available, prefer ST embeddings.
+                        model_dim = None
+                        try:
+                            model_dim = model.get_sentence_embedding_dimension()
+                        except Exception:
+                            model_dim = None
+
+                        # If meta indicates TF-IDF backend but ST is available, treat as mismatch
+                        if meta_backend == "tfidf":
+                            logger.info("Cache backend tfidf found for %s but ST available; recomputing", field)
+                        # If meta indicates ST backend, ensure model name and dim match
+                        elif meta_backend == "st":
+                            if meta.get("model_name") == model_name and (meta_dim is None or model_dim is None or int(meta_dim) == int(model_dim)):
+                                npz = np.load(npz_path, mmap_mode="r")
+                                emb = npz["embeddings"]
+                                logger.info("Loaded embeddings from cache %s", npz_path)
+                                results[field] = {"embeddings": emb, "candidate_ids": candidate_ids}
+                                continue
+                            else:
+                                logger.info("Cache model/dim mismatch for %s, recomputing embeddings", field)
+                        else:
+                            # Unknown backend recorded; be conservative and recompute
+                            logger.info("Unknown cache backend for %s, recomputing embeddings", field)
+                    else:
+                        # No ST available. Accept TF-IDF caches if present and dims exist.
+                        if meta_backend == "tfidf" and meta_dim is not None:
+                            try:
+                                npz = np.load(npz_path, mmap_mode="r")
+                                emb = npz["embeddings"]
+                                logger.info("Loaded TF-IDF embeddings from cache %s", npz_path)
+                                results[field] = {"embeddings": emb, "candidate_ids": candidate_ids}
+                                continue
+                            except Exception:
+                                logger.info("Failed to load TF-IDF cache for %s, recomputing", field)
+                        else:
+                            logger.info("Cache backend/states incompatible for %s, recomputing", field)
             except Exception:
                 logger.info("Failed to load cache for %s, recomputing", field)
 
@@ -176,10 +212,15 @@ def build_candidate_embeddings(
             # persist
             try:
                 np.savez_compressed(npz_path, embeddings=emb)
-                meta = {"candidate_ids": candidate_ids, "model_name": model_name}
+                meta = {
+                    "candidate_ids": candidate_ids,
+                    "model_name": model_name,
+                    "backend": "st",
+                    "dim": int(emb.shape[1]),
+                }
                 with open(meta_path, "w", encoding="utf-8") as f:
                     json.dump(meta, f)
-                logger.info("Saved embeddings to %s", npz_path)
+                logger.info("Saved embeddings to %s (dim=%d)", npz_path, emb.shape[1])
             except Exception as exc:
                 logger.warning("Failed to save embeddings cache: %s", exc)
 
@@ -201,12 +242,13 @@ def build_candidate_embeddings(
                 meta = {
                     "candidate_ids": candidate_ids,
                     "model_name": model_name,
+                    "backend": "tfidf",
                     "vocabulary": vocab_serializable,
                     "dim": int(arr.shape[1]),
                 }
                 with open(meta_path, "w", encoding="utf-8") as f:
                     json.dump(meta, f)
-                logger.info("Saved TF-IDF embeddings+vocab to %s", npz_path)
+                logger.info("Saved TF-IDF embeddings+vocab to %s (dim=%d)", npz_path, arr.shape[1])
             except Exception as exc:
                 logger.warning("Failed to save TF-IDF cache: %s", exc)
 
@@ -268,8 +310,67 @@ def score_against_jd(
         if candidate_count is None:
             candidate_count = emb.shape[0]
         if HAS_ST:
+            # Ensure embedding dimensions align. If they don't, try to rebuild
+            # candidate embeddings with the current model (force_recompute) when
+            # the caller provided `candidates`. This handles cases where cached
+            # embeddings were produced by a different method (e.g., TF-IDF) or
+            # an older model, which leads to shape mismatches like
+            # (n,513) vs (384,).
+            if jd_emb is None:
+                # No JD embedding available (shouldn't happen for HAS_ST), fallback
+                jd_emb_local = _embed_text_single(model, jd_text) if 'jd_text' in locals() else None
+            else:
+                jd_emb_local = jd_emb
+
+            if jd_emb_local is None:
+                scores = np.zeros((emb.shape[0],), dtype=np.float32)
+                per_field_scores[field] = scores
+                continue
+
+            if emb.shape[1] != jd_emb_local.shape[0]:
+                # Attempt to rebuild candidate embeddings with the current model
+                # if we have the original candidate list available to ensure
+                # consistent dimensions.
+                if candidates is not None:
+                    logger.info(
+                        "Dimension mismatch for field=%s (cand_dim=%d, jd_dim=%d). Rebuilding embeddings with model=%s",
+                        field,
+                        emb.shape[1],
+                        jd_emb_local.shape[0],
+                        model_name,
+                    )
+                    try:
+                        rebuilt = build_candidate_embeddings(
+                            candidates,
+                            model_name=model_name,
+                            cache_dir=Path(cache_dir) if cache_dir is not None else None,
+                            fields=[field],
+                            force_recompute=True,
+                        )
+                        emb = rebuilt[field]["embeddings"]
+                        candidate_embeddings[field]["embeddings"] = emb
+                    except Exception:
+                        logger.exception("Rebuilding embeddings failed for field=%s", field)
+
+            # If dimensions still mismatch, pad/truncate JD vector to match emb dim
+            if emb.shape[1] != jd_emb_local.shape[0]:
+                logger.warning(
+                    "After rebuild: Dimension mismatch between candidate embeddings (%d) and JD vector (%d) for field=%s; padding/truncating JD vector",
+                    emb.shape[1],
+                    jd_emb_local.shape[0],
+                    field,
+                )
+                if jd_emb_local.shape[0] < emb.shape[1]:
+                    new = np.zeros((emb.shape[1],), dtype=np.float32)
+                    new[: jd_emb_local.shape[0]] = jd_emb_local
+                    jd_emb_use = new
+                else:
+                    jd_emb_use = jd_emb_local[: emb.shape[1]]
+            else:
+                jd_emb_use = jd_emb_local
+
             # cosine since vectors are normalized: dot product
-            scores = emb.dot(jd_emb)
+            scores = emb.dot(jd_emb_use)
             per_field_scores[field] = scores
         else:
             # Reconstruct vectorizer from cache meta to get JD vector in same space

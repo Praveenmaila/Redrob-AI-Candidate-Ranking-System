@@ -8,4 +8,13 @@ components:
 honeypot_penalty_weight: 0.25
 ai_boost_scale: 5.0
 years_scale: 20.0
+
+# Semantic scoring configuration
+semantic:
+  weight: 0.5
+  model: "all-MiniLM-L6-v2"
+  cache_dir: ".cache/embeddings"
+  prefilter_k: 2000
+  prefilter_skill_weight: 0.3
+
 # If you want different scoring, edit these values and re-run the ranker.

@@ -3,6 +3,37 @@ import React from "react";
 import { Button } from "./shadcn";
 import { useDropzone } from "react-dropzone";
 
+/**
+ * Map file extensions to their MIME types for react-dropzone v14.
+ * Keys must be valid MIME types; values are arrays of extensions.
+ */
+const EXTENSION_TO_MIME: Record<string, Record<string, string[]>> = {
+  ".txt": { "text/plain": [".txt"] },
+  ".docx": {
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+      ".docx",
+    ],
+  },
+  ".jsonl": { "application/x-ndjson": [".jsonl"] },
+  ".csv": { "text/csv": [".csv"] },
+  ".json": { "application/json": [".json"] },
+};
+
+function buildAccept(
+  extensions: string[],
+): Record<string, string[]> {
+  const merged: Record<string, string[]> = {};
+  for (const ext of extensions) {
+    const mapping = EXTENSION_TO_MIME[ext];
+    if (mapping) {
+      for (const [mime, exts] of Object.entries(mapping)) {
+        merged[mime] = [...(merged[mime] || []), ...exts];
+      }
+    }
+  }
+  return merged;
+}
+
 interface Props {
   title: string;
   accepted: string[];
@@ -12,14 +43,7 @@ interface Props {
 
 export default function UploadCard({ title, accepted, file, onFile }: Props) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: accepted.reduce(
-      (acc, ext) => {
-        // map extensions to mime-agnostic matcher
-        acc[ext] = [];
-        return acc;
-      },
-      {} as Record<string, string[]>,
-    ),
+    accept: buildAccept(accepted),
     multiple: false,
     onDrop: (acceptedFiles) => {
       onFile(acceptedFiles[0] || null);
@@ -61,3 +85,4 @@ export default function UploadCard({ title, accepted, file, onFile }: Props) {
     </div>
   );
 }
+

@@ -19,7 +19,9 @@ export default function ProgressPanel({
   lastError,
   onRetry,
 }: Props) {
-  const [visibleBackendUrl, setVisibleBackendUrl] = useState<string | null>(null);
+  const [visibleBackendUrl, setVisibleBackendUrl] = useState<string | null>(
+    null,
+  );
   useEffect(() => {
     if (backendUrl) setVisibleBackendUrl(backendUrl);
   }, [backendUrl]);
@@ -43,7 +45,15 @@ export default function ProgressPanel({
       <div className="mt-3">
         {visibleBackendUrl ? (
           <div className="text-xs text-gray-500 mb-2">
-            Backend: <a href={visibleBackendUrl} className="underline" target="_blank" rel="noreferrer">{visibleBackendUrl}</a>
+            Backend:{" "}
+            <a
+              href={visibleBackendUrl}
+              className="underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {visibleBackendUrl}
+            </a>
           </div>
         ) : null}
         {lastError ? (
