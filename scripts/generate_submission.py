@@ -22,10 +22,14 @@ import sys
 root = Path(__file__).resolve().parents[1]
 if str(root) not in sys.path:
     sys.path.insert(0, str(root))
+src_dir = root / "src"
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
 
 from src.load_data import load_candidates
 from src import semantic_match
 from src import ranker
+from src.reasoning import generate_reasoning
 
 
 def main():
@@ -100,7 +104,8 @@ def main():
     rows = []
     for rank_idx, (_, cid, idx) in enumerate(keyed[: args.top]):
         score = float(final[int(idx)])
-        rows.append({"candidate_id": cid, "rank": rank_idx + 1, "score": score, "reasoning": "Combined semantic+signals"})
+        reason = generate_reasoning(candidates[int(idx)], score)
+        rows.append({"candidate_id": cid, "rank": rank_idx + 1, "score": score, "reasoning": reason})
 
     # Write CSV using ranker helper
     ranker.write_submission_csv(rows, args.out)
