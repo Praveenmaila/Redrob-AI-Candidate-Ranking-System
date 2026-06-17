@@ -1,18 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Allow eval() in dev mode for Next.js fast refresh / source maps
   async headers() {
     return [
       {
-        source: "/(.*)",
+        source: "/submission_top100.csv",
         headers: [
           {
-            key: "Content-Security-Policy",
-            value:
-              process.env.NODE_ENV === "development"
-                ? "script-src 'self' 'unsafe-eval' 'unsafe-inline';"
-                : "",
+            key: "Content-Disposition",
+            value: 'attachment; filename="submission_top100.csv"',
+          },
+          {
+            key: "Content-Type",
+            value: "text/csv; charset=utf-8",
           },
         ],
       },

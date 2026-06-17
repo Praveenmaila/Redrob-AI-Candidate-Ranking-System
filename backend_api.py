@@ -132,5 +132,12 @@ def health():
 def download():
     path = Path("submission_top100.csv")
     if path.exists():
-        return FileResponse(path, media_type="text/csv", filename=path.name)
+        return FileResponse(
+            path,
+            media_type="text/csv",
+            filename="submission_top100.csv",
+            headers={
+                "Content-Disposition": 'attachment; filename="submission_top100.csv"'
+            },
+        )
     return JSONResponse({"error": "not found"}, status_code=404)
