@@ -1,10 +1,13 @@
 import "../styles/globals.css";
 import React from "react";
 import { Metadata } from "next";
+import ClientLayout from "./ClientLayout";
 
 export const metadata: Metadata = {
-  title: "AI Candidate Ranking System",
-  description: "Dashboard for generating and reviewing candidate rankings",
+  title: "Redrob AI — Candidate Ranking System",
+  description:
+    "AI-powered candidate ranking system that analyzes resumes, extracts skills, and provides semantic matching for intelligent hiring decisions.",
+  keywords: ["AI", "candidate ranking", "recruitment", "hiring", "resume analysis"],
 };
 
 export default function RootLayout({
@@ -13,30 +16,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
-        <header className="w-full bg-white shadow-sm">
-          <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-            <h1 className="text-lg font-semibold">
-              AI Candidate Ranking System
-            </h1>
-            <nav>
-              <a
-                href="/"
-                className="text-sm text-gray-700 hover:underline mr-4"
-              >
-                Dashboard
-              </a>
-              <a
-                href="/results"
-                className="text-sm text-gray-700 hover:underline"
-              >
-                Results
-              </a>
-            </nav>
-          </div>
-        </header>
-        <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="bg-grid-pattern min-h-screen flex flex-col">
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
