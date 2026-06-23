@@ -46,3 +46,4 @@ scripts/e2e_small_metrics.json
 submission_top100*.csv
 .cache/
 debug-*.md
+.uploads/
