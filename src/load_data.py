@@ -79,6 +79,62 @@ def validate_candidate(candidate: Dict, schema: Dict) -> List[str]:
     return errors
 
 
+def iter_valid_candidates(
+    file_path: Path | str,
+    schema_path: Optional[Path | str] = None,
+    validate: bool = True,
+    skip_invalid: bool = True,
+) -> Iterator[Dict]:
+    """Stream validated candidate dicts one at a time (memory efficient).
+
+    Yields each valid candidate dict; never materializes the whole file.
+    """
+    validator = None
+    if validate and schema_path is not None:
+        validator = jsonschema.Draft7Validator(load_schema(schema_path))
+    p = Path(file_path)
+    if not p.exists():
+        raise FileNotFoundError(f"Candidates file not found: {p}")
+    with p.open("r", encoding="utf-8") as f:
+        for i, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                candidate = json.loads(line)
+            except json.JSONDecodeError as exc:
+                logger.warning("Skipping invalid JSON at %s:%d -> %s", p, i, exc)
+                continue
+            if validator is not None:
+                errors = []
+                for err in validator.iter_errors(candidate):
+                    path = ".".join([str(p) for p in err.path]) or "<root>"
+                    errors.append(f"{path}: {err.message}")
+                if errors:
+                    if not skip_invalid:
+                        raise ValueError(f"Invalid candidate at line {i}: {errors}")
+                    continue
+            yield candidate
+
+
+def iter_candidate_batches(
+    file_path: Path | str,
+    schema_path: Optional[Path | str] = None,
+    validate: bool = True,
+    skip_invalid: bool = True,
+    batch_size: int = 1000,
+) -> Iterator[List[Dict]]:
+    """Yield lists of up to `batch_size` validated candidate dicts at a time."""
+    batch: List[Dict] = []
+    for c in iter_valid_candidates(file_path, schema_path, validate, skip_invalid):
+        batch.append(c)
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
+
+
 def load_candidates(
     file_path: Path | str,
     schema_path: Optional[Path | str] = None,
@@ -137,6 +193,46 @@ def save_jsonl(candidates: List[Dict], out_path: Path | str) -> None:
     with p.open("w", encoding="utf-8") as f:
         for cand in candidates:
             f.write(json.dumps(cand, ensure_ascii=False) + "\n")
+
+
+def read_text_smart(file_path: Path | str) -> str:
+    """Read a text-like file with automatic encoding/format detection.
+
+    Supports:
+    - ``.docx`` via python-docx (extracts paragraph text joined by newlines).
+    - ``.txt``/``.md``/``.csv``/``.jsonl`` with a fallback ladder:
+      ``utf-8`` -> ``utf-8-sig`` -> ``utf-16`` -> ``utf-16-le`` -> ``utf-16-be`` -> ``latin-1``.
+
+    This is used by the pipeline so that an uploaded JD can be either a plain
+    ``.txt`` or a Word ``.docx`` without crashing with ``UnicodeDecodeError``.
+    """
+    p = Path(file_path)
+    if not p.exists():
+        raise FileNotFoundError(f"File not found: {p}")
+    suffix = p.suffix.lower()
+    if suffix == ".docx":
+        try:
+            import docx  # type: ignore
+        except Exception as exc:
+            raise RuntimeError(
+                "Reading .docx requires python-docx. Install with: "
+                f"pip install python-docx (original error: {exc})"
+            ) from exc
+        try:
+            document = docx.Document(str(p))
+            paragraphs = [par.text for par in document.paragraphs if par.text]
+            return "\n".join(paragraphs)
+        except Exception as exc:
+            raise ValueError(f"Failed to parse .docx file {p}: {exc}") from exc
+
+    raw = p.read_bytes()
+    for enc in ("utf-8", "utf-8-sig", "utf-16", "utf-16-le", "utf-16-be", "latin-1"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    # Last-resort: replace invalid bytes so the caller still gets a string
+    return raw.decode("utf-8", errors="replace")
 
 
 def _cli_main() -> None:

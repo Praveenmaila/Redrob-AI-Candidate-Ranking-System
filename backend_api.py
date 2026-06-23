@@ -28,6 +28,41 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 
 app = FastAPI()
 
+# Concurrency guard: at most one ranking subprocess at a time. Avoids
+# multiple concurrent runs competing for RAM and overwriting STATE.
+_RANKING_LOCK = threading.Lock()
+_ERROR_MARKERS = (
+    "Traceback",
+    "ERROR",
+    "CRITICAL",
+    "FATAL",
+    "UnicodeDecodeError",
+    "NameError",
+    "ValueError",
+    "TypeError",
+    "KeyError",
+    "AttributeError",
+    "ImportError",
+    "RuntimeError",
+    "OSError",
+    "IOError",
+    "FileNotFoundError",
+    "ZeroDivisionError",
+    "StopIteration",
+    "AssertionError",
+)
+
+
+def _is_error_line(line: str) -> bool:
+    return any(m in line for m in _ERROR_MARKERS) or line.startswith("ERR:")
+
+
+@app.on_event("startup")
+async def _startup_banner():
+    import logging as _logging
+    _logging.basicConfig(level=_logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    _logging.info("Redrob backend API ready on port 8000 (CORS: allow_origins=*)")
+
 # allow CORS from local dev frontend
 app.add_middleware(
     CORSMiddleware,

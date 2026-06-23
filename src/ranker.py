@@ -11,8 +11,9 @@ This module aims for deterministic, auditable scoring using only candidate data.
 
 from __future__ import annotations
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Iterable, Optional, Tuple
 import csv
+import heapq
 import math
 import logging
 
@@ -158,6 +159,53 @@ def _build_reasoning(candidate: Dict[str, Any], score: float) -> str:
         except Exception:
             years_s = "n/a"
         return f"{title} with {years_s}."
+
+
+def rank_candidates_stream(
+    candidates_iter: Iterable[Dict[str, Any]],
+    top_k: int = 100,
+    progress_every: int = 10000,
+) -> List[Dict[str, Any]]:
+    """Score and rank candidates from any iterable, keeping only top_k in RAM.
+
+    Uses a min-heap of size ``top_k`` so memory stays bounded regardless of
+    how many candidates are streamed. Each candidate's baseline score is
+    computed lazily as it arrives. Semantic scoring is intentionally NOT
+    applied here because it requires a fixed candidate subset; use
+    ``rank_candidates`` (or ``generate_submission.py``) when semantic
+    scoring is required.
+    """
+    tie = 0
+    count = 0
+    heap: List[Tuple[float, int, Dict[str, Any]]] = []
+
+    for c in candidates_iter:
+        cid = c.get("candidate_id")
+        try:
+            sc = float(candidate_score(c))
+        except Exception:
+            logger.exception("Failed to score candidate %s; assigning score 0", cid)
+            sc = 0.0
+        item = (sc, tie, c)
+        tie += 1
+        count += 1
+        if len(heap) < top_k:
+            heapq.heappush(heap, item)
+        else:
+            if sc > heap[0][0] or (sc == heap[0][0] and tie < heap[0][1]):
+                heapq.heapreplace(heap, item)
+        if progress_every and count % progress_every == 0:
+            logger.info("Scored %d candidates so far (heap size=%d)", count, len(heap))
+
+    rows = sorted(heap, key=lambda r: (-round(r[0], 4), r[1]))
+    top: List[Dict[str, Any]] = []
+    for i, (score, _, cand) in enumerate(rows[:top_k]):
+        rank = i + 1
+        cid = cand.get("candidate_id")
+        reasoning = _build_reasoning(cand, score)
+        top.append({"candidate_id": cid, "rank": rank, "score": score, "reasoning": reasoning})
+    logger.info("Stream ranking complete: processed=%d, top_k=%d", count, len(top))
+    return top
 
 
 def rank_candidates(

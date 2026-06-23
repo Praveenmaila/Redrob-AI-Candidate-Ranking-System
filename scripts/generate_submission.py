@@ -15,7 +15,11 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-import json
+import heapq
+import logging
+import re
+
+import numpy as np
 
 # Ensure repo src on path
 import sys
@@ -26,10 +30,13 @@ src_dir = root / "src"
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
-from src.load_data import load_candidates
+from src.load_data import read_text_smart, load_candidates, iter_valid_candidates
 from src import semantic_match
 from src import ranker
 from src.reasoning import generate_reasoning
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 
 def main():
@@ -45,71 +52,108 @@ def main():
     parser.add_argument("--prefilter-skill-weight", type=float, default=0.3, help="Weight of skill-overlap in prefilter score (0..1)")
     args = parser.parse_args()
 
-    # Load candidates and JD
-    candidates = load_candidates(args.candidates, schema_path="data/candidate_schema.json", validate=False)
-    jd_text = Path(args.jd).read_text(encoding="utf-8")
-
-    # Compute baseline ranker score for each candidate (cheap)
-    import numpy as np
-    import re
-
-    baseline_scores = [ranker.candidate_score(c) for c in candidates]
-    baseline_arr = np.array(baseline_scores, dtype=float)
-
-    # Prefilter: compute simple skill-overlap with JD tokens
+    # Read JD once (small, in-memory is fine)
+    jd_text = read_text_smart(args.jd)
     jd_tokens = set(re.findall(r"\w+", jd_text.lower()))
-    overlap_counts = []
-    for c in candidates:
+
+    pre_k = int(args.prefilter_k)
+    alpha = float(args.prefilter_skill_weight)
+
+    # STREAMING PASS: compute baseline + skill overlap per-candidate and
+    # maintain a min-heap of size pre_k based on the blended prefilter score.
+    # This avoids ever materializing the full candidate list in memory.
+    heap: List[Tuple[float, int, Dict, float]] = []
+    tie_counter = 0
+    total_seen = 0
+    overlap_max_seen = 0.0
+
+    for c in iter_valid_candidates(
+        args.candidates,
+        schema_path="data/candidate_schema.json",
+        validate=False,
+    ):
+        total_seen += 1
+        try:
+            base = float(ranker.candidate_score(c))
+        except Exception:
+            base = 0.0
         skills = [s.get("name", "") for s in (c.get("skills") or [])]
         skill_set = {s.lower() for s in skills if s}
-        overlap = len(skill_set & jd_tokens)
-        overlap_counts.append(overlap)
-    overlap_arr = np.array(overlap_counts, dtype=float)
-    # normalize overlap
-    max_ov = float(max(1.0, overlap_arr.max()))
-    overlap_norm = overlap_arr / max_ov
+        overlap = float(len(skill_set & jd_tokens))
+        overlap_max_seen = max(overlap_max_seen, overlap)
+        norm = overlap / max(1.0, overlap_max_seen)
+        prefilter_score = (1.0 - alpha) * base + alpha * norm
+        item = (prefilter_score, tie_counter, c, overlap)
+        tie_counter += 1
+        if pre_k <= 0 or len(heap) < pre_k:
+            heapq.heappush(heap, item)
+        else:
+            if prefilter_score > heap[0][0]:
+                heapq.heapreplace(heap, item)
 
-    alpha = float(args.prefilter_skill_weight)
-    prefilter_score = (1.0 - alpha) * baseline_arr + alpha * overlap_norm
+    logger.info(
+        "Streaming prefilter complete: total_seen=%d, heap_size=%d, max_overlap=%.0f",
+        total_seen, len(heap), overlap_max_seen,
+    )
 
-    # Decide which candidates to score semantically
-    pre_k = int(args.prefilter_k)
-    if pre_k <= 0 or pre_k >= len(candidates):
-        pre_indices = list(range(len(candidates)))
-    else:
-        pre_indices = list(np.argsort(-prefilter_score)[:pre_k])
+    # Fallback: no prefilter budget, stream the file again through the
+    # heap-based ranker (baseline only).
+    if pre_k <= 0:
+        ranked = ranker.rank_candidates_stream(
+            iter_valid_candidates(
+                args.candidates,
+                schema_path="data/candidate_schema.json",
+                validate=False,
+            ),
+            top_k=args.top,
+        )
+        ranker.write_submission_csv(ranked, args.out)
+        print(f"Wrote {len(ranked)} rows to {args.out}")
+        return
 
-    # Build embeddings only for prefiltered candidates
-    candidates_pref = [candidates[i] for i in pre_indices]
-    embeddings = semantic_match.build_candidate_embeddings(candidates_pref, model_name=args.model, cache_dir=Path(args.cache_dir))
+    # IN-MEMORY PASS (bounded at pre_k candidates): build embeddings for the
+    # prefiltered subset and combine baseline + semantic.
+    drained = sorted(heap, key=lambda t: -t[0])
+    cand_subset = [t[2] for t in drained]
 
-    # Compute semantic scores only for prefiltered candidates
-    sem_scores_pref, per_field = semantic_match.score_against_jd(jd_text, embeddings, model_name=args.model, cache_dir=Path(args.cache_dir), candidates=candidates_pref)
+    embeddings = semantic_match.build_candidate_embeddings(
+        cand_subset,
+        model_name=args.model,
+        cache_dir=Path(args.cache_dir),
+    )
+    sem_scores_pref, _ = semantic_match.score_against_jd(
+        jd_text,
+        embeddings,
+        model_name=args.model,
+        cache_dir=Path(args.cache_dir),
+        candidates=cand_subset,
+    )
     sem_norm_pref = (sem_scores_pref + 1.0) / 2.0
 
-    # Combine final scores for prefiltered candidates and keep baseline for others
     w = float(args.semantic_weight)
-    final = np.array(baseline_arr, dtype=float)
-    for idx_local, global_idx in enumerate(pre_indices):
-        final[global_idx] = w * float(sem_norm_pref[idx_local]) + (1.0 - w) * baseline_arr[global_idx]
+    baseline_pref = np.array(
+        [float(ranker.candidate_score(c)) for c in cand_subset],
+        dtype=float,
+    )
+    final_pref = w * sem_norm_pref.astype(float) + (1.0 - w) * baseline_pref
 
-    # Build top-k over all candidates using final score.
-    # Tie-break rule: higher score first, then candidate_id ascending.
-    ids = [c["candidate_id"] for c in candidates]
-    # Create list of (score, candidate_id, index) and sort by (-score, candidate_id)
-    keyed = [(float(final[i]), ids[i], i) for i in range(len(ids))]
-    # Sort by rounded score (4 decimals) descending, then candidate_id ascending to match validator.
-    keyed.sort(key=lambda t: (-round(t[0], 4), t[1]))
+    rows = sorted(
+        zip(final_pref.tolist(), cand_subset),
+        key=lambda t: (-round(t[0], 4), t[1].get("candidate_id") or ""),
+    )[: args.top]
 
-    rows = []
-    for rank_idx, (_, cid, idx) in enumerate(keyed[: args.top]):
-        score = float(final[int(idx)])
-        reason = generate_reasoning(candidates[int(idx)], score)
-        rows.append({"candidate_id": cid, "rank": rank_idx + 1, "score": score, "reasoning": reason})
+    out_rows = []
+    for rank_idx, (score, c) in enumerate(rows):
+        reason = generate_reasoning(c, score)
+        out_rows.append({
+            "candidate_id": c.get("candidate_id"),
+            "rank": rank_idx + 1,
+            "score": float(score),
+            "reasoning": reason,
+        })
 
-    # Write CSV using ranker helper
-    ranker.write_submission_csv(rows, args.out)
-    print(f"Wrote {len(rows)} rows to {args.out}")
+    ranker.write_submission_csv(out_rows, args.out)
+    print(f"Wrote {len(out_rows)} rows to {args.out}")
 
 
 if __name__ == "__main__":
