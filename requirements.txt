@@ -19,3 +19,6 @@ python-multipart>=0.0.9
 # Read .docx job descriptions uploaded via the frontend
 python-docx>=1.0.0
 
+# Read .pdf job descriptions uploaded via the frontend
+pypdf>=4.0.0
+

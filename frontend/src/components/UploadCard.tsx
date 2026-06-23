@@ -10,6 +10,7 @@ import GlassCard from "./ui/GlassCard";
  */
 const EXTENSION_TO_MIME: Record<string, Record<string, string[]>> = {
   ".txt": { "text/plain": [".txt"] },
+  ".pdf": { "application/pdf": [".pdf"] },
   ".docx": {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
       ".docx",

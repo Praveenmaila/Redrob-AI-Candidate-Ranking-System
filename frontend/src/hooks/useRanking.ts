@@ -2,6 +2,24 @@
 import { useState, useCallback } from "react";
 import { api, BASE_URL } from "../lib/api";
 
+/**
+ * Strip the legacy "ERR: " prefix that older backends add to every
+ * stderr line, when the line is actually a Python INFO / WARNING /
+ * DEBUG / NOTICE log (i.e. NOT a real error). Real errors
+ * (Traceback, ERROR level, exception class names) keep the "ERR: "
+ * prefix so they remain visually distinct.
+ *
+ * The pattern matches Python's default logging format:
+ *   "2026-06-23 11:23:47,790 INFO Loading SentenceTransformer model ..."
+ */
+function cleanProgressMessage(msg: unknown): string {
+  const s = typeof msg === "string" ? msg : msg == null ? "" : String(msg);
+  return s.replace(
+    /^ERR: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) (INFO|WARNING|DEBUG|NOTICE) /,
+    "$1 $2 "
+  );
+}
+
 export function useRanking() {
   const [jdFile, setJdFile] = useState<File | null>(null);
   const [candidatesFile, setCandidatesFile] = useState<File | null>(null);
@@ -84,10 +102,11 @@ export function useRanking() {
         try {
           const s = await api.get("/health");
           const data = s.data as any;
-          const msg =
-            data.progressMessage || data.status || JSON.stringify(data);
-          setProgressMessages((prev) => [...prev.slice(-10), String(msg)]);
-          setStatus(String(msg));
+          const msg = cleanProgressMessage(
+            data.progressMessage || data.status || JSON.stringify(data)
+          );
+          setProgressMessages((prev) => [...prev.slice(-10), msg]);
+          setStatus(msg);
           if (
             data.status === "done" ||
             data.status === "ready" ||
@@ -101,7 +120,9 @@ export function useRanking() {
           if (data.status === "error") {
             setIsRunning(false);
             setStatus("Failed");
-            setLastError(data.progressMessage || "Ranking failed on the backend");
+            const baseMsg = data.progressMessage || "Ranking failed on the backend";
+            const details = [data.errorDetails, data.traceback].filter(Boolean).join("\n");
+            setLastError(details ? `${baseMsg}\n${details}` : baseMsg);
             return;
           }
           pollErrors = 0;

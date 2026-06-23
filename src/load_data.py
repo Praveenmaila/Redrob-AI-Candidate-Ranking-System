@@ -82,13 +82,17 @@ def validate_candidate(candidate: Dict, schema: Dict) -> List[str]:
 def iter_valid_candidates(
     file_path: Path | str,
     schema_path: Optional[Path | str] = None,
-    validate: bool = True,
+    validate: Optional[bool] = None,
     skip_invalid: bool = True,
 ) -> Iterator[Dict]:
     """Stream validated candidate dicts one at a time (memory efficient).
 
-    Yields each valid candidate dict; never materializes the whole file.
+    Schema validation is optional. Pass ``schema_path`` and ``validate=True``
+    to enforce a JSON Schema, or omit both to accept any JSONL structure
+    (suitable for arbitrary / unknown datasets).
     """
+    if validate is None:
+        validate = schema_path is not None
     validator = None
     if validate and schema_path is not None:
         validator = jsonschema.Draft7Validator(load_schema(schema_path))
@@ -224,6 +228,26 @@ def read_text_smart(file_path: Path | str) -> str:
             return "\n".join(paragraphs)
         except Exception as exc:
             raise ValueError(f"Failed to parse .docx file {p}: {exc}") from exc
+
+    if suffix == ".pdf":
+        try:
+            from pypdf import PdfReader  # type: ignore
+        except Exception as exc:
+            raise RuntimeError(
+                "Reading .pdf requires pypdf. Install with: "
+                f"pip install pypdf (original error: {exc})"
+            ) from exc
+        try:
+            reader = PdfReader(str(p))
+            parts = []
+            for page in reader.pages:
+                try:
+                    parts.append(page.extract_text() or "")
+                except Exception:
+                    parts.append("")
+            return "\n".join([s for s in parts if s])
+        except Exception as exc:
+            raise ValueError(f"Failed to parse .pdf file {p}: {exc}") from exc
 
     raw = p.read_bytes()
     for enc in ("utf-8", "utf-8-sig", "utf-16", "utf-16-le", "utf-16-be", "latin-1"):

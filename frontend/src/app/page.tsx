@@ -55,7 +55,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <UploadCard
               title="Job Description"
-              accepted={[".txt", ".docx"]}
+              accepted={[".txt", ".docx", ".pdf"]}
               file={jdFile}
               onFile={setJdFile}
             />
@@ -109,7 +109,6 @@ export default function DashboardPage() {
             status={status}
             isRunning={isRunning}
             messages={progressMessages}
-            backendUrl={backendUrl}
             lastError={lastError}
             onRetry={retry}
           />

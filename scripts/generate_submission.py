@@ -50,11 +50,32 @@ def main():
     parser.add_argument("--semantic-weight", type=float, default=0.5, help="Weight for semantic score in final aggregation (0..1)")
     parser.add_argument("--prefilter-k", type=int, default=2000, help="Number of candidates to keep for expensive semantic scoring (0=disable)")
     parser.add_argument("--prefilter-skill-weight", type=float, default=0.3, help="Weight of skill-overlap in prefilter score (0..1)")
+    parser.add_argument("--reset-cache", action="store_true", help="Delete the embeddings cache directory before running (recovers from corrupt cache)")
     args = parser.parse_args()
 
+    if args.reset_cache:
+        import shutil
+        cache_root = Path(args.cache_dir)
+        # Wipe only the per-candidate and per-field cache files we own,
+        # not user data. Limit to files with our naming pattern.
+        if cache_root.exists():
+            for child in cache_root.iterdir():
+                try:
+                    if child.is_file():
+                        name = child.name
+                        if name.startswith("per_cand_") or name.startswith("emb_"):
+                            child.unlink(missing_ok=True)
+                    elif child.is_dir():
+                        shutil.rmtree(child, ignore_errors=True)
+                except Exception as exc:
+                    logger.warning("Failed to remove cache entry %s: %s", child, exc)
+            logger.info("Cache reset: removed cached embeddings under %s", cache_root)
+
     # Read JD once (small, in-memory is fine)
+    print("Stage: processing_jd", flush=True)
     jd_text = read_text_smart(args.jd)
     jd_tokens = set(re.findall(r"\w+", jd_text.lower()))
+    print("Stage: loading_dataset", flush=True)
 
     pre_k = int(args.prefilter_k)
     alpha = float(args.prefilter_skill_weight)
@@ -116,14 +137,42 @@ def main():
     drained = sorted(heap, key=lambda t: -t[0])
     cand_subset = [t[2] for t in drained]
 
-    embeddings = semantic_match.build_candidate_embeddings(
-        cand_subset,
-        model_name=args.model,
-        cache_dir=Path(args.cache_dir),
-    )
+    # Use per-candidate disk cache so re-runs with a different prefilter_k
+    # reuse already-embedded candidates instead of recomputing them.
+    print("Stage: building_embeddings", flush=True)
+    emb_by_cid: Dict[str, Dict[str, np.ndarray]] = {}
+    try:
+        for cid, field, vec in semantic_match.iter_candidate_embeddings(
+            cand_subset,
+            model_name=args.model,
+            cache_dir=Path(args.cache_dir),
+        ):
+            emb_by_cid.setdefault(cid, {})[field] = vec
+    except Exception as exc:
+        # The exception was already logged with traceback; emit a clean
+        # stage-aware marker so the backend can surface it to the UI.
+        logger.exception("Embedding generation failed during streaming pass")
+        print(f"Stage: building_embeddings FAILED: {type(exc).__name__}: {exc}", flush=True)
+        raise
+
+    # Build per-field arrays aligned with cand_subset for score_against_jd.
+    field_embeddings: Dict[str, np.ndarray] = {f: [] for f in ["summary", "headline", "career_history"]}
+    for c in cand_subset:
+        cid = c.get("candidate_id")
+        per_field = emb_by_cid.get(cid, {})
+        for f in field_embeddings:
+            arr = per_field.get(f)
+            if arr is None:
+                dim = 384  # all-MiniLM-L6-v2 dimension
+                arr = np.zeros((dim,), dtype=np.float32)
+            field_embeddings[f].append(arr)
+    for f in field_embeddings:
+        field_embeddings[f] = np.stack(field_embeddings[f], axis=0)
+
+    print("Stage: semantic_matching", flush=True)
     sem_scores_pref, _ = semantic_match.score_against_jd(
         jd_text,
-        embeddings,
+        field_embeddings,
         model_name=args.model,
         cache_dir=Path(args.cache_dir),
         candidates=cand_subset,
@@ -137,6 +186,7 @@ def main():
     )
     final_pref = w * sem_norm_pref.astype(float) + (1.0 - w) * baseline_pref
 
+    print("Stage: ranking", flush=True)
     rows = sorted(
         zip(final_pref.tolist(), cand_subset),
         key=lambda t: (-round(t[0], 4), t[1].get("candidate_id") or ""),
@@ -153,7 +203,8 @@ def main():
         })
 
     ranker.write_submission_csv(out_rows, args.out)
-    print(f"Wrote {len(out_rows)} rows to {args.out}")
+    print("Stage: exporting_results", flush=True)
+    print(f"Wrote {len(out_rows)} rows to {args.out}", flush=True)
 
 
 if __name__ == "__main__":

@@ -1,15 +1,14 @@
 import axios from "axios";
 
 function computeBaseURL() {
-  // Prefer explicit env config
-  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
-  // If running in browser, derive backend from current host using port 8000
-  if (typeof window !== "undefined") {
-    const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:8000`;
-  }
-  // Fallback for SSR / build
-  return "http://localhost:8000";
+  // Always go through the Next.js rewrite proxy at /api/*. The proxy
+  // (defined in next.config.js) forwards to the backend, which means
+  // (1) the browser never talks to a different host:port, avoiding CORS
+  // and firewall issues; (2) it works regardless of whether the user
+  // accesses the frontend via localhost or a remote host like
+  // http://10.74.166.38:3000; (3) the proxy target can be overridden
+  // per environment with NEXT_PUBLIC_BACKEND_TARGET.
+  return "/api";
 }
 
 const baseURL = computeBaseURL();
@@ -18,7 +17,9 @@ export const BASE_URL = baseURL;
 
 export const api = axios.create({
   baseURL,
-  timeout: 120000,
+  timeout: 15 * 60 * 1000,
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
 });
 
 export default api;

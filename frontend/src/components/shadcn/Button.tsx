@@ -43,12 +43,22 @@ export default function Button({
   className = "",
   children,
   disabled,
+  type,
   ...rest
 }: ButtonProps) {
   const isDisabled = disabled || isLoading;
 
   return (
     <button
+      // Default to type="button" so the element is never treated as a
+      // form-submit target. Without this, browser password managers and
+      // some extensions inject `fdprocessedid` and other attributes that
+      // differ between SSR and the client, breaking React hydration.
+      // `suppressHydrationWarning` absorbs any such attribute injection
+      // (e.g. fdprocessedid, data-1p-ignore) that happens between the
+      // server render and the client hydration.
+      type={type ?? "button"}
+      suppressHydrationWarning
       className={`
         inline-flex items-center justify-center font-medium
         transition-all duration-200 ease-out

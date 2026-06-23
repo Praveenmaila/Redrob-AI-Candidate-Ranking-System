@@ -78,14 +78,44 @@ def _cache_paths(cache_dir: Path, model_name: str, field: str) -> Tuple[Path, Pa
     return npz, meta
 
 
+# Module-level cache so the SentenceTransformer model is loaded only
+# once per process. Loading the all-MiniLM-L6-v2 model from disk takes
+# ~30-60s; without this cache, both iter_candidate_embeddings and
+# score_against_jd would each trigger a full load (~2x slower).
+_MODEL_CACHE: Dict[str, object] = {}
+
+
+def _get_or_load_model(model_name: str = "all-MiniLM-L6-v2", device: str = "cpu"):
+    key = f"{model_name}::{device}"
+    if key in _MODEL_CACHE:
+        return _MODEL_CACHE[key]
+    from sentence_transformers import SentenceTransformer
+    model = SentenceTransformer(model_name, device=device)
+    _MODEL_CACHE[key] = model
+    return model
+
+
+def _get_embedding_dim(model) -> int:
+    """Return the model's embedding dimension, handling the rename in
+    sentence-transformers >= 2.7 (get_embedding_dimension replaces
+    get_sentence_embedding_dimension)."""
+    for attr in ("get_embedding_dimension", "get_sentence_embedding_dimension"):
+        try:
+            return int(getattr(model, attr)())
+        except Exception:
+            continue
+    return 384  # all-MiniLM-L6-v2 default
+
+
 def load_model(model_name: str = "all-MiniLM-L6-v2", device: str = "cpu"):
     """Load a SentenceTransformer model or prepare a TF-IDF placeholder.
 
-    Returns a model-like object understood by `embed_texts`.
+    Returns a model-like object understood by `embed_texts`. The model
+    is cached at module level so repeated calls are O(1).
     """
     logger.info("Loading embedding model '%s' on device=%s (HAS_ST=%s)", model_name, device, HAS_ST)
     if HAS_ST:
-        return SentenceTransformer(model_name, device=device)
+        return _get_or_load_model(model_name, device)
     # TF-IDF fallback returns None as placeholder; `embed_texts` will build vectorizers per-call
     return None
 
@@ -257,14 +287,151 @@ def build_candidate_embeddings(
     return results
 
 
+def iter_candidate_embeddings(
+    candidates: List[Dict],
+    model_name: str = "all-MiniLM-L6-v2",
+    fields: Optional[List[str]] = None,
+    cache_dir: Optional[Path] = None,
+    batch_size: int = 64,
+    force_recompute: bool = False,
+) -> Iterator[Tuple[str, str, np.ndarray]]:
+    """Yield (candidate_id, field, embedding) lazily with per-candidate disk cache.
+
+    Designed for a bounded candidate list (e.g., a prefiltered subset of
+    size ~prefilter_k). For each (candidate_id, field) pair, the embedding
+    is loaded from ``.cache/per_cand_<model>_<cid>_<field>.npy`` if present,
+    otherwise computed in batches and saved.
+
+    This means a candidate embedded in a previous run is reused on the
+    next run — the cache never invalidates when the candidate set changes
+    or prefilter_k changes.
+    """
+    from sentence_transformers import SentenceTransformer  # local import for lazy load
+    if fields is None:
+        fields = ["summary", "headline", "career_history"]
+    if cache_dir is None:
+        cache_dir = Path(".cache/embeddings")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    safe_model = model_name.replace("/", "_")
+    model = _get_or_load_model(model_name, "cpu")
+
+    def _per_cand_path(cid: str, field: str) -> Path:
+        safe_cid = str(cid).replace("/", "_").replace("\\", "_")
+        return cache_dir / f"per_cand_{safe_model}_{safe_cid}_{field}.npy"
+
+    # Pass 1: load from disk cache where available, collect missing per field
+    missing_per_field: Dict[str, List[Tuple[str, str]]] = {f: [] for f in fields}
+    expected_dim = None
+    try:
+        expected_dim = _get_embedding_dim(model)
+    except Exception:
+        expected_dim = 384  # all-MiniLM-L6-v2 default
+    for c in candidates:
+        cid = c.get("candidate_id")
+        if cid is None:
+            continue
+        for field in fields:
+            p = _per_cand_path(cid, field)
+            if p.exists() and not force_recompute:
+                cache_ok = False
+                try:
+                    arr = np.load(p)
+                    # Accept only a 1D float array of the expected dim with
+                    # finite values. Anything else (0-d, wrong shape, NaN/Inf,
+                    # object dtype, multi-array .npz masquerading as .npy) is
+                    # treated as a corrupt cache and is deleted + re-embedded.
+                    if (
+                        isinstance(arr, np.ndarray)
+                        and arr.ndim == 1
+                        and arr.shape[0] == expected_dim
+                        and np.isfinite(arr).all()
+                    ):
+                        yield (cid, field, arr.astype(np.float32, copy=False))
+                        cache_ok = True
+                except Exception as exc:
+                    logger.warning(
+                        "Corrupt cache file %s (cid=%s field=%s): %s; will recompute",
+                        p, cid, field, exc,
+                    )
+                if not cache_ok:
+                    try:
+                        p.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                    text = _text_from_candidate(c, field)
+                    missing_per_field[field].append((cid, text))
+                continue
+            text = _text_from_candidate(c, field)
+            missing_per_field[field].append((cid, text))
+
+    # Pass 2: batch-embed missing per field. We do NOT swallow exceptions
+    # here: a real failure (OOM, dimension mismatch, broken cache) must
+    # propagate to the caller so the user sees a proper error instead of
+    # silent zeros. We convert the exception into a clear, structured
+    # RuntimeError with the field name, candidate count, and the original
+    # cause.
+    for field in fields:
+        items = missing_per_field[field]
+        if not items:
+            continue
+        cids = [cid for cid, _ in items]
+        texts = [t for _, t in items]
+        try:
+            embs = embed_texts(model, texts, batch_size=batch_size)
+        except Exception as exc:
+            logger.exception(
+                "iter_candidate_embeddings: failed to embed field=%s n=%d",
+                field, len(items),
+            )
+            raise RuntimeError(
+                f"Embedding generation failed for field={field!r} "
+                f"({len(items)} candidates, model={model_name}): {type(exc).__name__}: {exc}"
+            ) from exc
+        if embs is None or not isinstance(embs, np.ndarray):
+            raise RuntimeError(
+                f"Embedding generation returned no array for field={field!r}"
+            )
+        if embs.ndim != 2 or embs.shape[0] != len(cids):
+            raise RuntimeError(
+                f"Embedding generation produced unexpected shape for field={field!r}: "
+                f"expected (n={len(cids)}, dim={expected_dim}), got {embs.shape}"
+            )
+        if embs.shape[1] != expected_dim:
+            raise RuntimeError(
+                f"Embedding dimension mismatch for field={field!r}: "
+                f"expected dim={expected_dim}, got dim={embs.shape[1]}"
+            )
+        for cid, vec in zip(cids, embs):
+            p = _per_cand_path(cid, field)
+            try:
+                np.save(p, vec.astype(np.float32))
+            except Exception as exc:
+                logger.warning("Failed to persist embedding cache for %s/%s: %s", cid, field, exc)
+            yield (cid, field, vec)
+
+
 def _embed_text_single(model, text: str) -> np.ndarray:
     if HAS_ST:
         emb = model.encode([text], show_progress_bar=False, convert_to_numpy=True)
-        emb = emb.astype(np.float32)
-        norm = np.linalg.norm(emb, axis=1, keepdims=True)
+        # `model.encode` may return either a 2-D (1, dim) or, in some
+        # edge cases (empty text, tokenizer issues), a 0-D / 1-D
+        # array. Normalize to a 1-D (dim,) vector with defensive
+        # fallbacks so downstream code never sees an unexpected shape.
+        if not isinstance(emb, np.ndarray):
+            emb = np.asarray(emb)
+        if emb.ndim == 0:
+            emb = emb.reshape(1)
+        if emb.ndim == 1:
+            # Treat as a single vector already
+            arr = emb.astype(np.float32)
+        else:
+            arr = emb.astype(np.float32)
+            if arr.shape[0] != 1:
+                arr = arr[:1]
+        norm = np.linalg.norm(arr, axis=1, keepdims=True)
         norm[norm == 0] = 1.0
-        emb = emb / norm
-        return emb[0]
+        arr = arr / norm
+        return arr[0]
     # TF-IDF fallback: use the same vectorizer strategy as embed_texts for single text
     vectorizer = TfidfVectorizer(max_features=768)
     X = vectorizer.fit_transform([text])
@@ -277,13 +444,20 @@ def _embed_text_single(model, text: str) -> np.ndarray:
 
 def score_against_jd(
     jd_text: str,
-    candidate_embeddings: Dict[str, Dict],
+    candidate_embeddings: Dict[str, np.ndarray],
     model_name: str = "all-MiniLM-L6-v2",
     field_weights: Optional[Dict[str, float]] = None,
     cache_dir: Optional[Path] = None,
     candidates: Optional[List[Dict]] = None,
 ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
     """Score candidates against a job description.
+
+    Accepts ``candidate_embeddings`` as a mapping of field name to a 2-D
+    ``np.ndarray`` of shape ``(n_candidates, dim)``. This matches the
+    output of both the in-memory ``iter_candidate_embeddings`` stacking
+    step in ``generate_submission.py`` and the legacy
+    ``build_candidate_embeddings`` output (after extracting the
+    ``"embeddings"`` array).
 
     Returns:
         final_scores: np.ndarray shape (n_candidates,)
@@ -306,7 +480,61 @@ def score_against_jd(
     per_field_scores: Dict[str, np.ndarray] = {}
     candidate_count = None
     for field, data in candidate_embeddings.items():
-        emb = data["embeddings"]
+        # ---- Strict cache-format validation --------------------------------
+        # `score_against_jd` historically expected the legacy
+        # `build_candidate_embeddings` shape:  Dict[str, Dict] where each
+        # value is {"embeddings": np.ndarray, "candidate_ids": [...]}.
+        # The newer `iter_candidate_embeddings` (used by
+        # `generate_submission.py`) yields per-field vectors directly, so
+        # the caller passes Dict[str, np.ndarray]. We accept BOTH forms
+        # for backward compatibility, but anything else is a hard error
+        # so we never silently fall through to `data["embeddings"]` on a
+        # numpy array (which raises the cryptic
+        # "only integers, slices, ellipsis..." IndexError).
+        if isinstance(data, dict):
+            if "embeddings" not in data:
+                raise RuntimeError(
+                    f"score_against_jd: expected dict with an 'embeddings' "
+                    f"key for field={field!r}, but got keys={list(data.keys())}. "
+                    f"Either pass a 2-D np.ndarray directly, or include "
+                    f"'embeddings' in the dict."
+                )
+            emb = data["embeddings"]
+        elif isinstance(data, np.ndarray):
+            emb = data
+        else:
+            raise RuntimeError(
+                f"score_against_jd: expected embedding cache dict but got "
+                f"{type(data).__name__} for field={field!r}. Valid forms: "
+                f"(a) 2-D np.ndarray of shape (n_candidates, dim); or "
+                f"(b) dict with key 'embeddings' -> 2-D np.ndarray. "
+                f"Got value: {data!r:.200}"
+            )
+
+        # ---- Shape / dim / finiteness validation ----------------------------
+        if not isinstance(emb, np.ndarray):
+            raise RuntimeError(
+                f"score_against_jd: field={field!r} 'embeddings' is not a "
+                f"numpy array (got {type(emb).__name__})."
+            )
+        if emb.ndim != 2:
+            raise RuntimeError(
+                f"score_against_jd: field={field!r} 'embeddings' must be "
+                f"2-D (n_candidates, dim); got ndim={emb.ndim} shape={emb.shape}."
+            )
+        if emb.shape[0] == 0:
+            raise RuntimeError(
+                f"score_against_jd: field={field!r} has zero candidates; "
+                f"the candidate list is empty."
+            )
+        if not np.isfinite(emb).all():
+            n_bad = int((~np.isfinite(emb)).sum())
+            raise RuntimeError(
+                f"score_against_jd: field={field!r} 'embeddings' contains "
+                f"{n_bad} non-finite value(s) (NaN/Inf). Delete the per-candidate "
+                f"cache (.cache/embeddings/per_cand_*.npy) and re-run with "
+                f"--reset-cache, or check the upstream embed_texts() output."
+            )
         if candidate_count is None:
             candidate_count = emb.shape[0]
         if HAS_ST:
@@ -348,7 +576,7 @@ def score_against_jd(
                             force_recompute=True,
                         )
                         emb = rebuilt[field]["embeddings"]
-                        candidate_embeddings[field]["embeddings"] = emb
+                        candidate_embeddings[field] = emb
                     except Exception:
                         logger.exception("Rebuilding embeddings failed for field=%s", field)
 

@@ -72,12 +72,280 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-STATE = {"status": "ready", "progressMessage": "idle", "pid": None}
+import re as _re
+
+STATE = {
+    "status": "ready",
+    "progressMessage": "idle",
+    "pid": None,
+    "stage": "idle",
+    "stageLabel": "Idle",
+    "progressPct": 0,
+    "candidatesProcessed": 0,
+    "error": None,
+    "errorDetails": None,
+    "traceback": "",
+    "last_stdout": "",
+    "last_stderr": "",
+    # Internal: rolling buffers used by parse_subprocess_line to reassemble
+    # multi-line Python tracebacks across separate stderr lines.
+    "_traceback_buf": "",
+    "_last_lines": [],  # ring buffer of the last 100 raw lines for context
+}
+
+# Ordered, user-visible stage definitions. Keys are stable identifiers the
+# frontend uses to render badges; labels are the human-friendly copy shown
+# to end users. Pct is the progress percentage the UI should display while
+# the stage is active.
+STAGES = {
+    "idle": {"label": "Idle", "pct": 0},
+    "loading_model": {"label": "Loading AI Model", "pct": 5},
+    "loading_dataset": {"label": "Loading Candidate Dataset", "pct": 25},
+    "building_embeddings": {"label": "Building Candidate Embeddings", "pct": 55},
+    "processing_jd": {"label": "Processing Job Description", "pct": 70},
+    "semantic_matching": {"label": "Semantic Matching", "pct": 82},
+    "ranking": {"label": "Ranking Candidates", "pct": 90},
+    "exporting_results": {"label": "Exporting Results", "pct": 96},
+    "completed": {"label": "Completed", "pct": 100},
+    "error": {"label": "Error", "pct": 0},
+}
+
+# Map substrings found in the ranking subprocess output to a stage key.
+# Order matters: more specific patterns first.
+STAGE_PATTERNS = (
+    # Loading model
+    ("Loading SentenceTransformer", "loading_model"),
+    ("Loading embedding model", "loading_model"),
+    ("Loading model", "loading_model"),
+    # Loading dataset
+    ("Streaming prefilter complete", "loading_dataset"),
+    ("Loaded", "loading_dataset"),
+    ("Reading candidates", "loading_dataset"),
+    ("Loading candidate dataset", "loading_dataset"),
+    # Building embeddings
+    ("Embedding field", "building_embeddings"),
+    ("Building embeddings", "building_embeddings"),
+    ("embedding", "building_embeddings"),
+    # Processing JD
+    ("Processing job description", "processing_jd"),
+    ("Reading JD", "processing_jd"),
+    # Semantic matching
+    ("Semantic matching", "semantic_matching"),
+    ("semantic match", "semantic_matching"),
+    ("score_against_jd", "semantic_matching"),
+    ("Semantic scores computed", "semantic_matching"),
+    # Ranking
+    ("Ranking candidates", "ranking"),
+    ("Streaming prefilter", "ranking"),
+    ("Combining scores", "ranking"),
+    # Exporting
+    ("Wrote", "exporting_results"),
+    ("Writing results", "exporting_results"),
+    ("Writing submission", "exporting_results"),
+    # Completion
+    ("Finished: returncode=0", "completed"),
+)
+
+# Patterns that indicate a real user-facing failure. Matched against any
+# single line from the subprocess so we can replace stack traces with
+# friendly copy. Ordered most-specific first.
+ERROR_PATTERNS = (
+    # --- Loading dataset / file errors
+    (("UnicodeDecodeError",), "Failed to load candidate dataset"),
+    (("JSONDecodeError",), "Failed to load candidate dataset"),
+    (("Expecting value",), "Failed to load candidate dataset"),
+    (("FileNotFoundError",), "Failed to load candidate dataset"),
+    (("IsADirectoryError",), "Failed to load candidate dataset"),
+    (("PermissionError",), "Failed to load candidate dataset"),
+    (("OSError",), "Failed to load candidate dataset"),
+    (("IOError",), "Failed to load candidate dataset"),
+    (("ValueError", "schema"), "Failed to load candidate dataset"),
+    (("ValueError", "json"), "Failed to load candidate dataset"),
+    # --- Embedding / model errors
+    (("ImportError",), "Embedding generation failed"),
+    (("ModuleNotFoundError",), "Embedding generation failed"),
+    (("ValueError", "embedding"), "Embedding generation failed"),
+    (("ValueError", "shape"), "Embedding generation failed"),
+    (("ValueError", "dimension"), "Embedding dimension mismatch"),
+    (("RuntimeError", "CUDA"), "Embedding generation failed"),
+    (("RuntimeError", "out of memory"), "Embedding generation failed"),
+    (("MemoryError",), "Embedding generation failed"),
+    (("HF_HUB_OFFLINE",), "Embedding generation failed"),
+    (("HuggingFace",), "Embedding generation failed"),
+    # --- Ranking / generic
+    (("NameError",), "Ranking process interrupted"),
+    (("AttributeError",), "Ranking process interrupted"),
+    (("TypeError",), "Ranking process interrupted"),
+    (("IndexError",), "Ranking process interrupted"),
+    (("KeyError",), "Ranking process interrupted"),
+    (("AssertionError",), "Ranking process interrupted"),
+    (("RuntimeError",), "Ranking process interrupted"),
+    (("ZeroDivisionError",), "Ranking process interrupted"),
+    (("returncode=1",), "Ranking process interrupted"),
+    (("Traceback",), "Ranking process interrupted"),
+    (("KeyboardInterrupt",), "Ranking process interrupted"),
+)
+
+# Regex for extracting the exception type and message from a line that
+# ends a Python traceback. Example match: ValueError, "shapes (2000,513)
+# and (1,384) not aligned".
+_EXCEPTION_RE = _re.compile(
+    r"^([A-Z][A-Za-z]*(?:Error|Warning|Exception|Interrupt|MemoryError))\s*:?\s*(.*)$"
+)
+
+
+def _set_stage(stage_key: str, *, candidates: int | None = None, force_pct: int | None = None) -> None:
+    info = STAGES.get(stage_key, STAGES["idle"])
+    STATE["stage"] = stage_key
+    STATE["stageLabel"] = info["label"]
+    STATE["progressPct"] = max(STATE.get("progressPct", 0), int(force_pct if force_pct is not None else info["pct"]))
+    if candidates is not None:
+        STATE["candidatesProcessed"] = max(STATE.get("candidatesProcessed", 0), int(candidates))
+    STATE["progressMessage"] = info["label"]
+
+
+def _set_error(message: str, details: str | None = None, *, stage: str | None = None) -> None:
+    info = STAGES["error"]
+    STATE["status"] = "error"
+    STATE["stage"] = stage or STATE.get("stage", "error")
+    STATE["stageLabel"] = info["label"]
+    STATE["error"] = message
+    STATE["errorDetails"] = details or STATE.get("errorDetails")
+    STATE["progressMessage"] = message
+    # Promote the rolling traceback buffer to the persistent field.
+    tb = STATE.pop("_traceback_buf", "")
+    if tb:
+        STATE["traceback"] = tb[-4000:]
+
+
+def parse_subprocess_line(line: str) -> None:
+    """Inspect a single line of subprocess output and update structured state.
+
+    Raw output is still captured in last_stdout / last_stderr for backend
+    logs; this function only mutates the user-facing fields. A single line
+    can advance at most one stage.
+    """
+    if not line:
+        return
+
+    # Maintain a rolling 100-line ring buffer for context, regardless of
+    # whether the line looks interesting.
+    buf = STATE.get("_last_lines", [])
+    buf.append(line)
+    STATE["_last_lines"] = buf[-100:]
+
+    # ---- Multi-line traceback assembly -------------------------------------
+    # A Python traceback looks like:
+    #   Traceback (most recent call last):
+    #     File "...", line N, in <func>
+    #       <snippet>
+    #   <ExceptionType>: <message>
+    # We reassemble it as a single block so the frontend can show the
+    # full failure location.
+    tb_buf = STATE.get("_traceback_buf", "")
+    if line.startswith("Traceback (most recent call last):"):
+        STATE["_traceback_buf"] = line + "\n"
+        return
+    if tb_buf:
+        # Continuation of a traceback: indented File line, snippet, or the
+        # final exception line. Blank line ends the traceback.
+        if line.startswith("  ") or line.strip() == "" and STATE.get("_traceback_buf", "").rstrip().endswith(")"):
+            STATE["_traceback_buf"] = tb_buf + line + "\n"
+            if line.strip() == "":
+                STATE["traceback"] = tb_buf[-4000:]
+                STATE["_traceback_buf"] = ""
+            return
+        if not line.startswith(" "):
+            # Final exception line (e.g. "ValueError: shapes ... not aligned")
+            STATE["_traceback_buf"] = tb_buf + line + "\n"
+            STATE["traceback"] = STATE["_traceback_buf"][-4000:]
+            STATE["_traceback_buf"] = ""
+            # Extract exception type and details for structured error.
+            m = _EXCEPTION_RE.match(line.strip())
+            if m:
+                exc_type, exc_msg = m.group(1), m.group(2).strip()
+                # Try to find a friendly label for this exception type.
+                friendly, stage_for_error = _lookup_error(exc_type, exc_msg, line)
+                if friendly:
+                    # Pull the most recent File/line info for errorDetails.
+                    details = exc_msg or _extract_file_from_traceback(STATE["traceback"])
+                    _set_error(friendly, details, stage=stage_for_error or STATE.get("stage"))
+                    return
+        return
+
+    # ---- Single-line error detection --------------------------------------
+    for markers, friendly in ERROR_PATTERNS:
+        if all(m in line for m in markers):
+            details = _extract_file_from_traceback(
+                STATE.get("traceback", "") + "\n" + line
+            ) or line
+            _set_error(friendly, details, stage=_stage_for_error(markers))
+            return
+
+    # ---- Stage progression -------------------------------------------------
+    for needle, stage_key in STAGE_PATTERNS:
+        if needle in line:
+            count = _extract_count(line)
+            _set_stage(stage_key, candidates=count)
+            return
+
+
+def _stage_for_error(markers) -> str:
+    """Map an error marker set to the most likely current stage."""
+    joined = " ".join(markers).lower()
+    if "schema" in joined or "json" in joined or "decode" in joined or "filenotfound" in joined or "oserror" in joined:
+        return "loading_dataset"
+    if "import" in joined or "module" in joined or "embedding" in joined or "memory" in joined or "huggingface" in joined:
+        return "building_embeddings"
+    if "dimension" in joined or "shape" in joined or "valueerror" in joined:
+        return "building_embeddings"
+    return STATE.get("stage", "error")
+
+
+def _lookup_error(exc_type: str, exc_msg: str, full_line: str):
+    """Resolve (exc_type, exc_msg) to (friendly, stage) using ERROR_PATTERNS."""
+    for markers, friendly in ERROR_PATTERNS:
+        if any(m == exc_type for m in markers) or any(m in full_line for m in markers):
+            return friendly, _stage_for_error(markers)
+    return None, None
+
+
+def _extract_file_from_traceback(tb: str) -> str | None:
+    """Pull the deepest `File "...", line N` reference from a traceback string."""
+    matches = _re.findall(r'File \"([^\"]+)\", line (\d+)', tb)
+    if not matches:
+        return None
+    path, lineno = matches[-1]
+    return f"{path}:{lineno}"
+
+
+def _extract_count(line: str) -> int | None:
+    import re
+    patterns = (
+        r"total_seen\s*=\s*(\d+)",
+        r"for\s+(\d+)\s+candidates",
+        r"Loaded\s+(\d+)",
+        r"Wrote\s+(\d+)",
+        r"(\d+)\s+rows",
+    )
+    for pat in patterns:
+        m = re.search(pat, line)
+        if m:
+            try:
+                return int(m.group(1))
+            except (ValueError, IndexError):
+                return None
+    return None
 
 
 def run_ranking(candidates_path: Path, jd_path: Path, out_path: Path, extra_args=None):
     STATE["status"] = "running"
     STATE["progressMessage"] = "Starting ranking script"
+    STATE["error"] = None
+    STATE["errorDetails"] = None
+    STATE["traceback"] = ""
+    STATE["_traceback_buf"] = ""
+    STATE["last_lines"] = []
     STATE["last_stdout"] = ""
     STATE["last_stderr"] = ""
     cmd = [sys.executable, str(PROJECT_ROOT / "scripts" / "generate_submission.py"), "--candidates", str(candidates_path), "--jd", str(jd_path), "--out", str(out_path)]
@@ -94,11 +362,14 @@ def run_ranking(candidates_path: Path, jd_path: Path, out_path: Path, extra_args
                     if not line:
                         break
                     line = line.rstrip("\n")
-                    # append to last_stdout/last_stderr (keep last ~2000 chars)
+                    # 1) Always keep raw logs in last_stdout / last_stderr for
+                    #    the backend console and log file (last 2000 chars).
                     prev = STATE.get(key, "")
                     prev = (prev + "\n" + line)[-2000:]
                     STATE[key] = prev
-                    STATE["progressMessage"] = prefix + line
+                    # 2) Convert the line into a structured progress event
+                    #    instead of forwarding the raw string to the UI.
+                    parse_subprocess_line(prefix + line)
             finally:
                 try:
                     pipe.close()
@@ -120,12 +391,23 @@ def run_ranking(candidates_path: Path, jd_path: Path, out_path: Path, extra_args
         for t in threads:
             t.join(timeout=0.5)
 
-        STATE["progressMessage"] = f"Finished: returncode={ret}"
-        STATE["status"] = "done" if ret == 0 else "error"
+        if ret != 0:
+            # Promote whatever the parser assembled (traceback + details)
+            # to the user-facing error fields. If the parser didn't fire
+            # (e.g. subprocess killed by signal), use the stderr tail.
+            if not STATE.get("error"):
+                tb = STATE.get("traceback", "") or STATE.get("last_stderr", "")
+                details = _extract_file_from_traceback(tb) or tb.strip().splitlines()[-1] if tb.strip() else None
+                _set_error("Ranking process interrupted", details)
+            STATE["status"] = "error"
+        else:
+            _set_stage("completed", force_pct=100)
+            STATE["status"] = "done"
     except Exception as e:
-        STATE["status"] = "error"
-        STATE["progressMessage"] = f"Exception: {e}"
-        STATE["last_stderr"] = STATE.get("last_stderr", "") + f"\nException: {e}"
+        import traceback as _tb
+        tb_text = _tb.format_exc()
+        STATE["last_stderr"] = (STATE.get("last_stderr", "") + f"\n{tb_text}")[-2000:]
+        _set_error("Ranking process interrupted", _extract_file_from_traceback(tb_text) or str(e))
 
 
 @app.post("/rank")
@@ -147,16 +429,29 @@ async def rank(jd: UploadFile = File(...), candidates: UploadFile = File(...)):
     t = threading.Thread(target=run_ranking, args=(cand_path, jd_path, out_path), daemon=True)
     t.start()
     STATE["status"] = "running"
-    STATE["progressMessage"] = "Ranking started"
-    return JSONResponse({"status": "started", "progressMessage": STATE["progressMessage"]})
+    _set_stage("loading_model")
+    return JSONResponse({
+        "status": "started",
+        "stage": STATE["stage"],
+        "stageLabel": STATE["stageLabel"],
+        "progressPct": STATE["progressPct"],
+        "candidatesProcessed": STATE["candidatesProcessed"],
+        "progressMessage": STATE["stageLabel"],
+    })
 
 
 @app.get("/health")
 def health():
-    # return recent logs (truncated) to help debugging
     return JSONResponse({
         "status": STATE.get("status", "unknown"),
-        "progressMessage": STATE.get("progressMessage", ""),
+        "stage": STATE.get("stage", "idle"),
+        "stageLabel": STATE.get("stageLabel", "Idle"),
+        "progressPct": int(STATE.get("progressPct", 0)),
+        "candidatesProcessed": int(STATE.get("candidatesProcessed", 0)),
+        "error": STATE.get("error"),
+        "errorDetails": STATE.get("errorDetails"),
+        "traceback": STATE.get("traceback", ""),
+        "progressMessage": STATE.get("stageLabel") or STATE.get("progressMessage", ""),
         "pid": STATE.get("pid"),
         "last_stdout_tail": STATE.get("last_stdout", "")[-2000:],
         "last_stderr_tail": STATE.get("last_stderr", "")[-2000:],
