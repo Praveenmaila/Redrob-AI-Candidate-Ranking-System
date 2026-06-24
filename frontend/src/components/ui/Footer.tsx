@@ -6,12 +6,12 @@ const footerLinks = {
   Product: [
     { label: "Dashboard", href: "/" },
     { label: "Results", href: "/results" },
-    { label: "Analytics", href: "/analytics" },
+    { label: "Upload", href: "/#upload" },
   ],
   Resources: [
-    { label: "Documentation", href: "#" },
-    { label: "Methodology", href: "#" },
-    { label: "API Reference", href: "#" },
+    { label: "GitHub", href: "https://github.com/Praveenmaila/Redrob-AI-Candidate-Ranking-System" },
+    { label: "Methodology", href: "https://github.com/Praveenmaila/Redrob-AI-Candidate-Ranking-System/blob/main/methodology.md" },
+    { label: "Architecture", href: "https://github.com/Praveenmaila/Redrob-AI-Candidate-Ranking-System#architecture" },
   ],
 };
 

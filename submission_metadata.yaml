@@ -1,0 +1,78 @@
+# Redrob Hackathon — Submission Metadata
+# Generated from data/submission_metadata_template.yaml
+
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "Praveen Maila"
+
+primary_contact:
+  name: "Praveen Maila"
+  email: "praveenmaila@example.com"
+  phone: "+91-XXXXXXXXXX"
+
+team_members:
+  - name: "Praveen Maila"
+    email: "praveenmaila@example.com"
+    role: "Full Stack Engineer"
+
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "https://github.com/Praveenmaila/Redrob-AI-Candidate-Ranking-System"
+
+sandbox_link: ""  # To be updated with deployment URL
+
+reproduce_command: "python scripts/generate_submission.py --candidates data/candidates.jsonl --jd data/sample_jd.txt --out submission_top100.csv --prefilter-k 2000 --semantic-weight 0.5"
+
+# ============================================================================
+# Compute environment
+# ============================================================================
+compute:
+  platform: "Windows Desktop"
+  cpu_cores: 8
+  ram_gb: 16
+  python_version: "3.11"
+  os: "Windows"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: false
+  pre_computation_time_minutes: 0
+
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+ai_tools_used:
+  - "Claude"
+  - "GitHub Copilot"
+
+ai_usage_summary: |
+  Used Claude for architecture discussion, code review, and debugging.
+  Used GitHub Copilot for autocomplete. No candidate data was fed to any LLM.
+  All ranking logic is deterministic and does not use LLM inference.
+
+# ============================================================================
+# Approach summary
+# ============================================================================
+methodology_summary: |
+  Multi-signal ranking engine combining behavioral platform signals (45%),
+  availability scoring (15%), skill assessments (15%), GitHub activity (10%),
+  experience years (10%), and AI-skill boost (5%) with a honeypot penalty.
+  Semantic matching uses SentenceTransformers (all-MiniLM-L6-v2) embeddings
+  with per-field weighting (summary 60%, career 25%, headline 15%).
+  A prefilter keeps the top 2000 candidates by baseline+skill-overlap score
+  before expensive embedding, keeping runtime under 3 minutes on CPU.
+  Final score: 50% semantic + 50% baseline. Deterministic, factual reasoning
+  is generated per candidate citing only profile data. Full Next.js frontend
+  with glassmorphism UI provides upload, progress tracking, and explainable
+  results with score breakdowns.
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true

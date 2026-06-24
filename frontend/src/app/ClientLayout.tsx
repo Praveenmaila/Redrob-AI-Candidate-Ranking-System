@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React from "react";
 import Navbar from "../components/ui/Navbar";
 import Footer from "../components/ui/Footer";
 
@@ -8,34 +8,6 @@ export default function ClientLayout({
 }: {
   children: React.ReactNode;
 }) {
-  useEffect(() => {
-    const onUnhandledRejection = (e: PromiseRejectionEvent) => {
-      try {
-        const reason = (e && (e as any).reason) || e;
-        console.error("Unhandled promise rejection detected:", reason);
-        // If it's an Event object, log its type and target
-        if (reason instanceof Event) {
-          console.error({
-            eventType: reason.type,
-            eventTarget: (reason as any).target,
-          });
-        }
-      } catch (err) {
-        console.error("Error logging unhandled rejection:", err);
-      }
-    };
-
-    const onError = (ev: ErrorEvent) => {
-      console.error("Global error:", ev.message, ev.error || ev);
-    };
-
-    window.addEventListener("unhandledrejection", onUnhandledRejection);
-    window.addEventListener("error", onError);
-    return () => {
-      window.removeEventListener("unhandledrejection", onUnhandledRejection);
-      window.removeEventListener("error", onError);
-    };
-  }, []);
   return (
     <>
       {/* Animated background blobs */}

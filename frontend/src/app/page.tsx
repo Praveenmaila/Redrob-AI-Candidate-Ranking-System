@@ -23,6 +23,10 @@ export default function DashboardPage() {
     backendUrl,
     lastError,
     retry,
+    currentStage,
+    stageLabel,
+    progressPct,
+    candidatesProcessed,
   } = useRanking();
 
   return (
@@ -109,6 +113,10 @@ export default function DashboardPage() {
             status={status}
             isRunning={isRunning}
             messages={progressMessages}
+            stage={currentStage}
+            stageLabel={stageLabel}
+            progressPct={progressPct}
+            candidatesProcessed={candidatesProcessed}
             lastError={lastError}
             onRetry={retry}
           />

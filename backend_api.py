@@ -1,4 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
+from datetime import datetime, timezone
+import csv
 import sys
 
 # Runtime check: ensure `python-multipart` is importable from the same Python
@@ -453,8 +455,6 @@ def health():
         "traceback": STATE.get("traceback", ""),
         "progressMessage": STATE.get("stageLabel") or STATE.get("progressMessage", ""),
         "pid": STATE.get("pid"),
-        "last_stdout_tail": STATE.get("last_stdout", "")[-2000:],
-        "last_stderr_tail": STATE.get("last_stderr", "")[-2000:],
     })
 
 
@@ -471,3 +471,103 @@ def download():
             },
         )
     return JSONResponse({"error": "not found"}, status_code=404)
+
+
+def _parse_reasoning_text(text: str) -> dict:
+    """Parse a reasoning string like 'Title with X yrs; Strengths: a, b; Concerns: c.'
+    into structured components."""
+    import re as _re_local
+    title = "Candidate"
+    years = 0.0
+    strengths = []
+    concerns = []
+
+    # Extract title and years
+    m = _re_local.match(r'^(.+?)\s+with\s+([\d.]+)\s+yrs', text)
+    if m:
+        title = m.group(1).strip()
+        try:
+            years = float(m.group(2))
+        except Exception:
+            pass
+
+    # Extract strengths
+    sm = _re_local.search(r'Strengths:\s*(.+?)(?:;|Concerns:|\.$)', text)
+    if sm:
+        strengths = [s.strip() for s in sm.group(1).split(',') if s.strip()]
+
+    # Extract concerns
+    cm = _re_local.search(r'Concerns:\s*(.+?)(?:\.$|$)', text)
+    if cm:
+        concerns = [c.strip().rstrip('.') for c in cm.group(1).split(',') if c.strip()]
+
+    # Approximate score breakdowns
+    experience_match_pct = int(round(min(100.0, (years / 20.0) * 100.0)))
+
+    ai_count = 0
+    am = _re_local.search(r'(\d+)\s+AI\s+skills', text)
+    if am:
+        ai_count = int(am.group(1))
+    assessment = 0.0
+    asm = _re_local.search(r'assessments\s*\((\d+)\)', text)
+    if asm:
+        assessment = float(asm.group(1))
+    skill_raw = min(1.0, ai_count / 5.0) * 0.6 + min(1.0, assessment / 100.0) * 0.4
+    skill_match_pct = int(round(skill_raw * 100.0))
+
+    return {
+        "title": title,
+        "years_experience": round(years, 1),
+        "strengths": strengths,
+        "concerns": concerns,
+        "skill_match_pct": max(0, min(100, skill_match_pct)),
+        "experience_match_pct": max(0, min(100, experience_match_pct)),
+    }
+
+
+@app.get("/results")
+def results():
+    """Return structured JSON for the ranked candidates."""
+    path = Path("submission_top100.csv")
+    if not path.exists():
+        return JSONResponse({"error": "No results available yet. Run ranking first."}, status_code=404)
+
+    candidates = []
+    scores = []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                score_val = float(row.get("score", 0))
+                scores.append(score_val)
+                reasoning_text = row.get("reasoning", "")
+                parsed = _parse_reasoning_text(reasoning_text)
+
+                # Approximate semantic match from score
+                semantic_match_pct = int(round(min(100.0, score_val * 100.0 * 0.7)))
+
+                candidates.append({
+                    "candidate_id": row.get("candidate_id", ""),
+                    "rank": int(row.get("rank", 0)),
+                    "score": round(score_val, 4),
+                    "semantic_match_pct": max(0, min(100, semantic_match_pct)),
+                    "skill_match_pct": parsed["skill_match_pct"],
+                    "experience_match_pct": parsed["experience_match_pct"],
+                    "key_strengths": parsed["strengths"],
+                    "concerns": parsed["concerns"],
+                    "title": parsed["title"],
+                    "years_experience": parsed["years_experience"],
+                    "reasoning": reasoning_text,
+                })
+    except Exception as exc:
+        return JSONResponse({"error": f"Failed to parse results: {exc}"}, status_code=500)
+
+    metadata = {
+        "total_candidates": len(candidates),
+        "avg_score": round(sum(scores) / len(scores), 4) if scores else 0,
+        "max_score": round(max(scores), 4) if scores else 0,
+        "min_score": round(min(scores), 4) if scores else 0,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    return JSONResponse({"candidates": candidates, "metadata": metadata})

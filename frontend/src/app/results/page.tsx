@@ -3,103 +3,188 @@ import React, { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import ResultsTable from "../../components/ResultsTable";
 import CandidateModal from "../../components/CandidateModal";
+import GlassCard from "../../components/ui/GlassCard";
+import SkeletonLoader from "../../components/ui/SkeletonLoader";
 import { Button } from "../../components/shadcn";
+import {
+  Download,
+  Trophy,
+  TrendingUp,
+  Users,
+  BarChart3,
+  AlertCircle,
+  Sparkles,
+} from "lucide-react";
+import type { CandidateRow, ResultsMetadata } from "../../types";
 
 export default function ResultsPage() {
-  const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<any | null>(null);
+  const [rows, setRows] = useState<CandidateRow[]>([]);
+  const [metadata, setMetadata] = useState<ResultsMetadata | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<CandidateRow | null>(null);
 
   useEffect(() => {
-    async function fetchCsv() {
+    async function fetchResults() {
       setLoading(true);
+      setError(null);
       try {
-        const res = await api.get("/download", { responseType: "text" });
-        const csv = res.data as string;
-        const parsed = parseCsv(csv);
-        setRows(parsed);
-      } catch (e) {
-        console.error(e);
+        const res = await api.get("/results");
+        const data = res.data as { candidates: CandidateRow[]; metadata: ResultsMetadata };
+        setRows(data.candidates || []);
+        setMetadata(data.metadata || null);
+      } catch (e: any) {
+        // Fallback to CSV parsing if /results endpoint not available
+        try {
+          const res = await api.get("/download", { responseType: "text" });
+          const csv = res.data as string;
+          const parsed = parseCsv(csv);
+          setRows(parsed);
+        } catch {
+          setError("No results available. Run the ranking pipeline first.");
+        }
       } finally {
         setLoading(false);
       }
     }
-    fetchCsv();
+    fetchResults();
   }, []);
 
-  function parseCsv(csv: string) {
+  function parseCsv(csv: string): CandidateRow[] {
     const lines = csv.trim().split("\n");
     if (lines.length <= 1) return [];
-    const headers = lines[0].split(",").map((h) => h.trim());
-    return lines.slice(1).map((l) => {
-      // Split only on first 3 commas; the rest is reasoning (may contain commas)
+    return lines.slice(1).map((l, idx) => {
       const parts = l.split(",");
-      const obj: any = {};
-      obj[headers[0]] = parts[0]; // candidate_id
-      obj[headers[1]] = parts[1]; // rank
-      obj[headers[2]] = parts[2]; // score
-      obj[headers[3]] = parts.slice(3).join(","); // reasoning
-      return obj;
+      return {
+        candidate_id: parts[0] || "",
+        rank: parseInt(parts[1]) || idx + 1,
+        score: parseFloat(parts[2]) || 0,
+        reasoning: parts.slice(3).join(",").replace(/^"|"$/g, ""),
+        semantic_match_pct: 0,
+        skill_match_pct: 0,
+        experience_match_pct: 0,
+        key_strengths: [],
+        concerns: [],
+        title: "Candidate",
+        years_experience: 0,
+      };
     });
   }
 
+  async function handleDownload() {
+    try {
+      const response = await fetch("/api/download");
+      const blob = await response.blob();
+      if ("showSaveFilePicker" in window) {
+        const handle = await (window as any).showSaveFilePicker({
+          suggestedName: "submission_top100.csv",
+          types: [{ description: "CSV File", accept: { "text/csv": [".csv"] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "submission_top100.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      if (e.name !== "AbortError") console.error("Download failed", e);
+    }
+  }
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Top 100 Candidates</h2>
-        <Button variant="primary" onClick={async () => {
-          try {
-            const response = await fetch("/submission_top100.csv");
-            const blob = await response.blob();
-
-            // Use native Save As dialog - guarantees correct filename
-            if ("showSaveFilePicker" in window) {
-              const handle = await (window as any).showSaveFilePicker({
-                suggestedName: "submission_top100.csv",
-                types: [
-                  {
-                    description: "CSV File",
-                    accept: { "text/csv": [".csv"] },
-                  },
-                ],
-              });
-              const writable = await handle.createWritable();
-              await writable.write(blob);
-              await writable.close();
-              return;
-            }
-
-            // Fallback for browsers without showSaveFilePicker
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "submission_top100.csv";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          } catch (e: any) {
-            if (e.name !== "AbortError") console.error("Download failed", e);
-          }
-        }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Download CSV
-        </Button>
-      </div>
-      {loading ? (
-        <div className="p-6 bg-white rounded shadow text-center">
-          Loading results...
+    <div className="page-enter">
+      {/* Page Header */}
+      <section className="mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 text-xs font-medium mb-3 border border-brand-200/50 dark:border-brand-800/30">
+              <Sparkles className="w-3 h-3" aria-hidden="true" />
+              AI-Ranked Results
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold">
+              Top <span className="gradient-text">100</span> Candidates
+            </h1>
+            <p className="text-[var(--text-secondary)] mt-2 text-sm">
+              Ranked by semantic matching, skill alignment, and experience relevance.
+            </p>
+          </div>
+          <Button
+            variant="gradient"
+            size="lg"
+            onClick={handleDownload}
+            leftIcon={<Download className="w-4 h-4" />}
+            disabled={rows.length === 0}
+            id="download-csv-btn"
+          >
+            Download CSV
+          </Button>
         </div>
+      </section>
+
+      {/* Stats Bar */}
+      {metadata && !loading && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <GlassCard className="p-4 text-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-violet-500 flex items-center justify-center mx-auto mb-2 shadow-lg">
+              <Users className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-xl font-bold tabular-nums">{metadata.total_candidates}</div>
+            <div className="text-xs text-[var(--text-muted)]">Candidates Ranked</div>
+          </GlassCard>
+          <GlassCard className="p-4 text-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center mx-auto mb-2 shadow-lg">
+              <Trophy className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-xl font-bold tabular-nums">{metadata.max_score.toFixed(4)}</div>
+            <div className="text-xs text-[var(--text-muted)]">Top Score</div>
+          </GlassCard>
+          <GlassCard className="p-4 text-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-2 shadow-lg">
+              <TrendingUp className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-xl font-bold tabular-nums">{metadata.avg_score.toFixed(4)}</div>
+            <div className="text-xs text-[var(--text-muted)]">Average Score</div>
+          </GlassCard>
+          <GlassCard className="p-4 text-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center mx-auto mb-2 shadow-lg">
+              <BarChart3 className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-xl font-bold tabular-nums">
+              {(metadata.max_score - metadata.min_score).toFixed(4)}
+            </div>
+            <div className="text-xs text-[var(--text-muted)]">Score Range</div>
+          </GlassCard>
+        </div>
+      )}
+
+      {/* Content */}
+      {loading ? (
+        <GlassCard className="p-6">
+          <SkeletonLoader rows={8} />
+        </GlassCard>
+      ) : error ? (
+        <GlassCard className="p-12 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-amber-500" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">No Results Yet</h3>
+          <p className="text-sm text-[var(--text-muted)] max-w-md mx-auto mb-6">{error}</p>
+          <Button variant="primary" onClick={() => (window.location.href = "/")}>
+            Go to Dashboard
+          </Button>
+        </GlassCard>
       ) : (
-        <ResultsTable rows={rows} onRowClick={(r) => setSelected(r)} />
+        <ResultsTable rows={rows} onRowClick={(r) => setSelected(r as CandidateRow)} />
       )}
 
       <CandidateModal row={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
-

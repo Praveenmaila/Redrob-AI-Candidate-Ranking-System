@@ -2,13 +2,15 @@
 import React from "react";
 import { Trophy, Medal, Award } from "lucide-react";
 
-type BadgeVariant = "gold" | "silver" | "bronze" | "success" | "warning" | "error" | "info";
+type BadgeVariant = "gold" | "silver" | "bronze" | "success" | "warning" | "error" | "danger" | "info";
+type BadgeSize = "sm" | "md";
 
 interface BadgeProps {
   variant: BadgeVariant;
   children: React.ReactNode;
   className?: string;
   icon?: boolean;
+  size?: BadgeSize;
 }
 
 const styles: Record<BadgeVariant, string> = {
@@ -18,7 +20,13 @@ const styles: Record<BadgeVariant, string> = {
   success: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   warning: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   error: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  danger: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   info: "bg-brand-100 text-brand-800 dark:bg-brand-900/30 dark:text-brand-400",
+};
+
+const sizeStyles: Record<BadgeSize, string> = {
+  sm: "px-2 py-0.5 text-[10px]",
+  md: "px-2.5 py-0.5 text-xs",
 };
 
 const icons: Partial<Record<BadgeVariant, React.ReactNode>> = {
@@ -27,13 +35,14 @@ const icons: Partial<Record<BadgeVariant, React.ReactNode>> = {
   bronze: <Award className="w-3 h-3" />,
 };
 
-export default function Badge({ variant, children, className = "", icon = true }: BadgeProps) {
+export default function Badge({ variant, children, className = "", icon = true, size = "md" }: BadgeProps) {
   return (
     <span
       className={`
-        inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold
+        inline-flex items-center gap-1 rounded-full font-semibold
         shadow-sm transition-all duration-200
         ${styles[variant]}
+        ${sizeStyles[size]}
         ${className}
       `}
     >
@@ -42,3 +51,4 @@ export default function Badge({ variant, children, className = "", icon = true }
     </span>
   );
 }
+

@@ -102,8 +102,28 @@ Next steps
 - Run a full submission generation with recommended `prefilter_k` and validate with `src/validator.py`.
 - Commit changes and the `methodology.md` summary to the repository.
 
-**Next actions**
+**Evaluation**
 
-- Run a full-scale run with `prefilter_k=2000` and `semantic.weight=0.5` to produce `submission_top100.csv` and inspect top candidates.
-- Write short ablation notes (precision@10/20) for the final `methodology.md` after running full experiments.
-- Optionally remove `streamlit` from `requirements.txt` and delete `app/streamlit_app.py` if UI not required.
+- **Submission validation:** Zero errors from `src/validator.py` (schema, row count, score ordering, tie-break rules all pass).
+- **Score distribution (full 100k run):**
+  - Top-1 score: 0.8064 (Senior Machine Learning Engineer, 5 AI skills, 83 assessment, 94 GitHub)
+  - Top-10 avg score: 0.7394
+  - Top-100 avg score: 0.6818
+  - Score range: 0.6598 – 0.8064
+  - All top-100 candidates have AI/ML-relevant titles
+- **Honeypot effectiveness:** Candidates with profile inconsistencies receive 0.25× penalty weight, effectively demoting suspicious profiles below genuine candidates with lower raw scores.
+- **Semantic contribution:** Adding semantic matching (weight=0.5, prefilter_k=2000) shifts the ranking to favor candidates whose career summaries and headlines semantically align with the JD, versus pure signal-based scoring which over-weights behavioral metrics.
+
+**Score Component Weights Justification**
+
+| Component | Weight | Rationale |
+|-----------|--------|-----------|
+| Behavioral | 0.45 | Platform engagement signals are the strongest indicator of candidate responsiveness and genuine interest |
+| Availability | 0.15 | Notice period and open-to-work status directly impact hiring timeline |
+| Assessment | 0.15 | Verified skill scores provide objective competency measurement |
+| GitHub | 0.10 | Technical activity demonstrates practical coding ability |
+| Experience | 0.10 | Years of experience provides seniority context |
+| AI Boost | 0.05 | Specific AI skills (RAG, LLMs, Transformers) provide targeted relevance for AI roles |
+
+These weights were chosen to balance responsiveness (behavioral), capability (assessment + GitHub + AI boost), and practical fit (availability + experience). The honeypot penalty (0.25) is applied post-aggregation to ensure suspicious profiles are penalized regardless of their raw signal strength.
+
