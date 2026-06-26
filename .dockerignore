@@ -1,0 +1,45 @@
+# ── Docker ignore ────────────────────────────────────────────────────
+# Keep the build context small by excluding unnecessary files.
+
+# Python virtual environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Frontend build artifacts and dev deps (re-installed in Dockerfile)
+frontend/.next/
+frontend/node_modules/
+frontend/.vercel/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large data files (mount via volume instead)
+data/candidates.jsonl
+
+# Uploaded files & cache (ephemeral)
+.uploads/
+.cache/
+output/
+
+# Don't exclude Dockerfiles – they must remain in the build context
+
+# Notebooks and debug artifacts
+notebooks/
+debug-*.md
+out_semantic.txt
+*.log
+
+# Submission CSVs (generated at runtime)
+submission_top100*.csv

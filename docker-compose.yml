@@ -1,0 +1,63 @@
+# ============================================================================
+# Redrob AI Candidate Ranking System – Docker Compose
+# ============================================================================
+# Usage:
+#   docker-compose up --build         # Build and run both services
+#   docker-compose up -d              # Run in detached mode
+#   docker-compose down               # Stop and remove containers
+#   docker-compose logs -f            # Tail logs
+# ============================================================================
+
+services:
+  # ── Backend (FastAPI + ML pipeline) ──────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: redrob-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount data directory so candidates and JD files are accessible
+      - ./data:/app/data
+      # Persist uploads and cache between restarts
+      - redrob-uploads:/app/.uploads
+      - redrob-cache:/app/.cache
+      # Persist generated output
+      - redrob-output:/app/output
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ── Frontend (Next.js) ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: redrob-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_BACKEND_TARGET=http://backend:8000
+      - NODE_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  redrob-uploads:
+  redrob-cache:
+  redrob-output:

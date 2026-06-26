@@ -40,3 +40,6 @@ export function CardSkeleton() {
     </div>
   );
 }
+
+export default TableSkeleton;
+

@@ -2,7 +2,11 @@
 const BACKEND_TARGET =
   process.env.NEXT_PUBLIC_BACKEND_TARGET || "http://localhost:8000";
 
+const path = require("path");
+
 const nextConfig = {
+  output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, ".."),
   reactStrictMode: true,
   async rewrites() {
     return [
