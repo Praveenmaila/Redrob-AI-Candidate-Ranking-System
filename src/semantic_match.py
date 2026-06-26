@@ -132,7 +132,7 @@ def embed_texts(
     """
     if not texts:
         if HAS_ST:
-            return np.zeros((0, model.get_sentence_embedding_dimension()), dtype=np.float32)
+            return np.zeros((0, _get_embedding_dim(model)), dtype=np.float32)
         return np.zeros((0, 0), dtype=np.float32)
 
     if HAS_ST:
@@ -198,7 +198,7 @@ def build_candidate_embeddings(
                         # If we have sentence-transformers available, prefer ST embeddings.
                         model_dim = None
                         try:
-                            model_dim = model.get_sentence_embedding_dimension()
+                            model_dim = _get_embedding_dim(model)
                         except Exception:
                             model_dim = None
 
