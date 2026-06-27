@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   description:
     "AI-powered candidate ranking system that analyzes resumes, extracts skills, and provides semantic matching for intelligent hiring decisions.",
   keywords: ["AI", "candidate ranking", "recruitment", "hiring", "resume analysis"],
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({

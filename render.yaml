@@ -1,0 +1,18 @@
+# Render Blueprint – Redrob AI Backend
+# Deploy: connect this repo on render.com and it auto-detects this file.
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: redrob-backend
+    runtime: python
+    plan: starter
+    buildCommand: pip install --upgrade pip && pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt
+    startCommand: uvicorn backend_api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.4"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    healthCheckPath: /health
+    autoDeploy: true

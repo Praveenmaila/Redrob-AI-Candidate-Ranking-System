@@ -102,6 +102,14 @@ npm run dev
 # Opens at http://localhost:3000
 ```
 
+### Docker (One Command)
+
+```powershell
+docker compose up --build
+# Backend → http://localhost:8000
+# Frontend → http://localhost:3000
+```
+
 ### Run Ranking Pipeline Directly
 
 ```powershell
@@ -138,7 +146,9 @@ python scripts/generate_submission.py \
 ```
 ├── backend_api.py          # FastAPI server (upload, progress, results, download)
 ├── scripts/
-│   └── generate_submission.py  # End-to-end ranking pipeline
+│   ├── generate_submission.py  # End-to-end ranking pipeline
+│   ├── smoke_rank.py       # Quick ranking smoke test
+│   └── e2e_small_test.py   # E2E test with metrics
 ├── src/
 │   ├── ranker.py           # Multi-signal scoring engine
 │   ├── semantic_match.py   # SentenceTransformer embeddings + TF-IDF fallback
@@ -150,29 +160,60 @@ python scripts/generate_submission.py \
 │   └── validator.py        # Submission CSV validation
 ├── config/
 │   └── ranker_config.yaml  # Configurable scoring weights
-├── frontend/               # Next.js app with glassmorphism UI
-│   └── src/
-│       ├── app/            # Pages (dashboard, results)
-│       ├── components/     # UI components
-│       └── hooks/          # React hooks (useRanking)
+├── frontend/               # Next.js 15 app with glassmorphism UI
+│   ├── src/
+│   │   ├── app/            # Pages (dashboard, results)
+│   │   ├── components/     # UI components (upload, table, modal)
+│   │   └── hooks/          # React hooks (useRanking)
+│   └── vercel.json         # Vercel deployment config
 ├── data/                   # Candidate dataset + JD + schema
+├── Dockerfile.backend      # Python 3.11 + PyTorch CPU backend image
+├── Dockerfile.frontend     # Next.js standalone frontend image
+├── docker-compose.yml      # Multi-service orchestration
+├── render.yaml             # Render Blueprint for backend deploy
+├── .env.example            # Environment variable template
 ├── methodology.md          # Detailed methodology documentation
 └── submission_top100.csv   # Generated output
 ```
 
 ## Deployment
 
-### Frontend (Vercel)
+### Docker Compose (Recommended)
+
 ```bash
-cd frontend && npm run build
-# Deploy with NEXT_PUBLIC_BACKEND_TARGET env var
+docker compose up --build -d
 ```
 
-### Backend (Render/Railway)
-```bash
-# Uses Procfile: uvicorn backend_api:app --host 0.0.0.0 --port $PORT
-# Requires: Python 3.11, ~2GB RAM for model loading
-```
+Both services are orchestrated with health checks. The frontend proxies API calls to the backend container automatically.
+
+| Service | Port | Health Check |
+|---------|------|-------------|
+| Backend | 8000 | `GET /health` |
+| Frontend | 3000 | `GET /` |
+
+### Frontend (Vercel)
+
+1. Connect the `frontend/` directory to Vercel
+2. Set environment variable: `NEXT_PUBLIC_BACKEND_TARGET=https://your-backend.onrender.com`
+3. Deploy — Vercel auto-detects the Next.js framework from `vercel.json`
+
+### Backend (Render)
+
+1. Connect the repo to Render
+2. The `render.yaml` Blueprint auto-configures the service:
+   - Python 3.11, PyTorch CPU-only
+   - Start command: `uvicorn backend_api:app --host 0.0.0.0 --port $PORT`
+   - Health check: `/health`
+
+### Environment Variables
+
+See [`.env.example`](.env.example) for the full list. Key variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NEXT_PUBLIC_BACKEND_TARGET` | `http://localhost:8000` | Backend URL for Next.js proxy |
+| `PORT` | `8000` | Backend listen port |
+| `PYTHONUNBUFFERED` | `1` | Flush Python logs immediately |
 
 ## License
 

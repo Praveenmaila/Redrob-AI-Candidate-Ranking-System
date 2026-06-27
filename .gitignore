@@ -1,49 +1,44 @@
-# General
+# ── General ────────────────────────────────────────────────
 .DS_Store
 *.log
 __pycache__/
 *.pyc
+*.pyo
 
-# Python virtualenv
+# ── Python ─────────────────────────────────────────────────
 .venv/
 venv/
+*.egg-info/
 
-# Frontend (Next.js)
-/frontend/.next/
-/frontend/.next/**
-/frontend/node_modules/
-/frontend/package-lock.json
-/frontend/yarn.lock
-/frontend/pnpm-lock.yaml
-/frontend/next-env.d.ts
-/frontend/.env.local
-/frontend/.vercel/
-/frontend/dist/
-/frontend/.parcel-cache/
-/frontend/.turbo/
-
-# IDEs
-/.vscode/
+# ── IDE ────────────────────────────────────────────────────
+.vscode/
 .idea/
-venv/
-__pycache__/
-*.pyc
 
+# ── Frontend (Next.js) ────────────────────────────────────
+frontend/.next/
+frontend/node_modules/
+frontend/next-env.d.ts
+frontend/.env.local
+frontend/.vercel/
+frontend/dist/
+frontend/.parcel-cache/
+frontend/.turbo/
+
+# ── Data (large files) ────────────────────────────────────
+data/candidates.jsonl
+
+# ── Runtime / Cache ───────────────────────────────────────
+.cache/
+.uploads/
 output/
 src/__pycache__/
 
-.vscode/
-.DS_Store
-
-data/candidates.jsonl
-
-.cache/
-out_semantic.txt
-submission_top100_full.csv
-submission_top100_small.csv
-scripts/e2e_small_metrics.json
-.uploads/.uploads/
+# ── Generated output ──────────────────────────────────────
 submission_top100*.csv
-.cache/
+out_semantic.txt
+scripts/e2e_small_metrics.json
 debug-*.md
-.uploads/
+
+# ── Environment ───────────────────────────────────────────
+.env
+.env.local
