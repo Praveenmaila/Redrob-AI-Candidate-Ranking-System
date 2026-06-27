@@ -106,58 +106,27 @@ The system leverages:
 
 ```mermaid
 graph TD
-    %% Frontend Layer
-    subgraph Frontend [Next.js 15 Glassmorphic UI]
-        FD[Dashboard Page] -->|1. Upload Dataset / Select Saved| FU[Dataset Dropdown / Dropzone]
-        FD -->|2. Upload JD & Start Run| FR[Rank Button]
-        FR -->|3. Poll Progress| PH[Health Status Panel]
-        FD -->|4. View Results| FT[Interactive Candidate Table]
-        FT -->|5. Click Row| FM[Candidate Details Modal & Charts]
-    end
 
-    %% Backend Layer
-    subgraph Backend [FastAPI Server - Port 8000]
-        API_UP["/datasets/upload"]
-        API_LST["/datasets"]
-        API_RNK["/rank"]
-        API_HLT["/health"]
-        API_RES["/results"]
-        API_DWN["/download"]
-        
-        API_RNK -->|Spawns Subprocess| SUB[generate_submission.py]
-    end
+    A[👤 User] --> B[🌐 Next.js Frontend]
 
-    %% Subprocess Pipeline Layer
-    subgraph Pipeline [Ranking Pipeline Subprocess]
-        SUB --> LD[Load & Validate Candidates JSONL]
-        LD --> PRE[Prefilter Top K Candidates]
-        PRE --> EMB[Build Cosine Embeddings / TF-IDF]
-        EMB --> FE[Extract Multi-Signal Features]
-        FE --> BEH[Compute Behavioral Score]
-        BEH --> HP[Execute Honeypot Detection & Penalties]
-        HP --> SCR[Apply YAML Weights & Compute Final Score]
-        SCR --> RES_GEN[Generate Deterministic Reasoning]
-        RES_GEN --> OUT[Write submission_top100.csv]
-    end
+    B --> C[📤 Upload Candidate Dataset]
+    B --> D[📝 Upload Job Description]
 
-    %% Storage & Caching Layer
-    subgraph Storage [Storage & Caching]
-        DATA_DIR[data/uploads/]
-        EMB_CACHE[.cache/embeddings/ .npz + .meta.json]
-        CSV_FILE[(submission_top100.csv)]
-    end
+    C --> E[⚡ FastAPI Backend]
+    D --> E
 
-    %% Interaction Paths
-    FU -.->|Upload stream| API_UP
-    API_UP -->|Save JSONL| DATA_DIR
-    API_LST -->|Scan directory| DATA_DIR
-    API_RNK -->|Fetch dataset path| DATA_DIR
-    SUB -.->|Output stdout/stderr logs| API_HLT
-    EMB <-->|Cache / Read Embeddings| EMB_CACHE
-    OUT --> CSV_FILE
-    API_RES <-->|Parse CSV & Extract Structured JSON| CSV_FILE
-    API_DWN -->|File download stream| CSV_FILE
+    E --> F[📂 Load & Validate Data]
+    F --> G[🧠 Semantic Matching]
+    G --> H[📊 Hybrid Scoring]
+    H --> I[🏆 Candidate Ranking]
+    I --> J[💡 Explainable AI Reasoning]
+
+    J --> K[(Top 100 Ranked Candidates)]
+
+    K --> L[📈 Results Dashboard]
+    K --> M[📄 CSV Download]
 ```
+
 
 ### Architectural Design Details
 - **Decoupled Architecture**: Next.js client interacts with the FastAPI backend directly, bypassing proxies for high-throughput uploads.
@@ -557,19 +526,15 @@ FastAPI runs on port `8000`. The API uses CORS middleware allowing browser calls
 
 The Next.js 15 frontend utilizes an aesthetic glassmorphic style with Framer Motion transitions.
 
-#### Home / Dataset Upload
-```
-┌────────────────────────────────────────────────────────┐
-│  REDROB AI - Candidate Discovery                       │
-├────────────────────────────────────────────────────────┤
-│  Dataset Selection: [ candidates_small.jsonl      ] [v]│
-│                                                        │
-│  Drag & Drop Job Description Here                      │
-│  [ (Icon) Select sample_jd.txt or drop file ]          │
-│                                                        │
-│                       [ Start Ranking Candidates ]     │
-└────────────────────────────────────────────────────────┘
-```
+#### 🏠 Home / Dataset Upload
+
+The landing page provides a clean interface for uploading the candidate dataset and job description. Users can drag and drop files, select existing datasets, and initiate the AI-powered ranking pipeline.
+
+<p align="center">
+  <img src ="https://github.com/user-attachments/assets/b3ca7d2a-9ce8-4fda-8ed2-dd03b49440b9"
+       alt="Home Dataset Upload Dashboard"
+       width="100%">
+</p>
 
 #### Dashboard / Progress Tracker
 ```
@@ -583,17 +548,15 @@ The Next.js 15 frontend utilizes an aesthetic glassmorphic style with Framer Mot
 └────────────────────────────────────────────────────────┘
 ```
 
-#### Ranking Page / Results Table
-```
-┌────────────────────────────────────────────────────────┐
-│  Top Ranked Candidates                                 │
-├─────┬──────────────┬────────┬───────────────────┬──────┤
-│Rank │ Candidate ID │ Score  │ Key Title         │ Action│
-├─────┼──────────────┼────────┼───────────────────┼──────┤
-│ 1   │ CAND_0018499 │ 0.8064 │ Senior ML Eng     │ View │
-│ 2   │ CAND_0098412 │ 0.7932 │ Lead NLP Scientist│ View │
-└─────┴──────────────┴────────┴───────────────────┴──────┘
-```
+#### 📊 Ranking Page / Results Table
+
+The Results Dashboard presents the AI-ranked top 100 candidates along with semantic match scores, skill alignment, experience metrics, and key strengths. Recruiters can search, inspect rankings, and export the final shortlist as a CSV.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/102d98b5-5f9f-4eac-9781-7812ee705cd6"
+       alt="Ranking Results Dashboard"
+       width="100%">
+</p>
 
 #### Analytics & Score Distribution
 ```
@@ -607,22 +570,15 @@ The Next.js 15 frontend utilizes an aesthetic glassmorphic style with Framer Mot
 └─────────────────────────┴──────────────────────────────┘
 ```
 
-#### Candidate Details Modal
-```
-┌────────────────────────────────────────────────────────┐
-│  Candidate Details - CAND_0018499                      │
-├────────────────────────────────────────────────────────┤
-│  Title: Senior Machine Learning Engineer (17.0 Yrs)    │
-│                                                        │
-│  Match Percentages:                                    │
-│  - Semantic Fit:  [======>   ] 56%                     │
-│  - Skill Overlap: [=========>] 98%                     │
-│                                                        │
-│  Strengths: RAG, LLMs, Transformers                    │
-│  Concerns: None                                        │
-│  Reasoning: Factual explanation citing verified data   │
-└────────────────────────────────────────────────────────┘
-```
+#### 👤 Candidate Details Modal
+
+The Candidate Details modal provides an explainable AI view of each ranked profile, including the overall score, semantic match, skill alignment, experience, key strengths, and deterministic reasoning behind the ranking. This helps recruiters understand why a candidate was recommended and make informed hiring decisions.
+
+<p align="center">
+  <img  src="https://github.com/user-attachments/assets/9f6f0e45-d98a-4e03-9bb0-eb187e0a2b5d"
+       alt="Candidate Details Modal"
+       width="100%">
+</p>
 
 ---
 
