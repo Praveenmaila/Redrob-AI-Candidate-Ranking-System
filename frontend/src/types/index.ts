@@ -25,6 +25,12 @@ export type ResultsResponse = {
   metadata: ResultsMetadata;
 };
 
+export type DatasetInfo = {
+  name: string;
+  size: string;
+  uploaded_at: string;
+};
+
 export type RankingStage = {
   stage: string;
   stageLabel: string;

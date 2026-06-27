@@ -14,12 +14,12 @@
 │  │  Cards   │  │  Panel   │  │  Table    │  │  Modal        │  │
 │  └────┬─────┘  └────┬─────┘  └────┬──────┘  └───────────────┘  │
 │       └──────────────┴─────────────┘                            │
-│                      │  /api/* proxy                            │
+│                      │  direct FastAPI calls                    │
 └──────────────────────┼──────────────────────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │                      FastAPI Backend                              │
-│  POST /rank  │  GET /health  │  GET /results  │  GET /download   │
+│  /datasets   │  POST /rank  │  /health/results/download          │
 │              │               │                │                  │
 │  ┌───────────┴───────────────┴────────────────┘                  │
 │  │           Ranking Pipeline (subprocess)                       │
@@ -101,6 +101,15 @@ npm install
 npm run dev
 # Opens at http://localhost:3000
 ```
+
+### Dataset Management Workflow
+
+The frontend talks directly to FastAPI using `NEXT_PUBLIC_BACKEND_TARGET` and does not proxy uploads through Next.js.
+
+1. Upload a candidate dataset once from the dashboard. The frontend sends it to `POST /datasets/upload`, and FastAPI streams it to `data/uploads/`.
+2. Select a saved dataset from the dashboard dropdown. The list comes from `GET /datasets`.
+3. Upload only the job description when running ranking. `POST /rank` receives multipart fields `jd=<file>` and `dataset=<saved filename>`.
+4. Polling and outputs stay unchanged: `GET /health`, `GET /results`, and `GET /download`.
 
 ### Docker (One Command)
 
@@ -211,7 +220,7 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NEXT_PUBLIC_BACKEND_TARGET` | `http://localhost:8000` | Backend URL for Next.js proxy |
+| `NEXT_PUBLIC_BACKEND_TARGET` | `http://localhost:8000` | Browser-reachable FastAPI URL |
 | `PORT` | `8000` | Backend listen port |
 | `PYTHONUNBUFFERED` | `1` | Flush Python logs immediately |
 

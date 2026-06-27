@@ -14,9 +14,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend/ .
 
-# The backend URL the Next.js rewrite proxy targets at runtime.
-# In docker-compose this resolves to the backend service name.
-ENV NEXT_PUBLIC_BACKEND_TARGET=http://backend:8000
+# Browser-reachable FastAPI URL. The frontend does not proxy uploads.
+ENV NEXT_PUBLIC_BACKEND_TARGET=http://localhost:8000
 
 # Build the standalone output
 RUN npm run build
@@ -26,7 +25,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV NEXT_PUBLIC_BACKEND_TARGET=http://backend:8000
+ENV NEXT_PUBLIC_BACKEND_TARGET=http://localhost:8000
 
 # Create a non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \

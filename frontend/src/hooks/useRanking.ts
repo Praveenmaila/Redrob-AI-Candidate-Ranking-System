@@ -1,10 +1,14 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { api, BASE_URL } from "../lib/api";
+import type { DatasetInfo } from "../types";
 
 export function useRanking() {
   const [jdFile, setJdFile] = useState<File | null>(null);
-  const [candidatesFile, setCandidatesFile] = useState<File | null>(null);
+  const [datasetFile, setDatasetFile] = useState<File | null>(null);
+  const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
+  const [selectedDataset, setSelectedDataset] = useState("");
+  const [isUploadingDataset, setIsUploadingDataset] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [status, setStatus] = useState("");
   const [lastError, setLastError] = useState<string | null>(null);
@@ -18,11 +22,47 @@ export function useRanking() {
   // Keep a minimal list of user-friendly messages (not raw subprocess output)
   const [progressMessages, setProgressMessages] = useState<string[]>([]);
 
+  const refreshDatasets = useCallback(async () => {
+    const res = await api.get("/datasets");
+    const list = res.data as DatasetInfo[];
+    setDatasets(list);
+    setSelectedDataset((current) => {
+      if (current && list.some((dataset) => dataset.name === current)) return current;
+      return list[0]?.name || "";
+    });
+  }, []);
+
+  useEffect(() => {
+    refreshDatasets().catch(() => {
+      setDatasets([]);
+    });
+  }, [refreshDatasets]);
+
+  const uploadDataset = useCallback(async () => {
+    if (!datasetFile) return;
+    setIsUploadingDataset(true);
+    setLastError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", datasetFile);
+      const res = await api.post("/datasets/upload", fd);
+      const uploaded = res.data as DatasetInfo;
+      await refreshDatasets();
+      setSelectedDataset(uploaded.name);
+      setDatasetFile(null);
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || "Failed to upload dataset.";
+      setLastError(msg);
+    } finally {
+      setIsUploadingDataset(false);
+    }
+  }, [datasetFile, refreshDatasets]);
+
   const startRanking = useCallback(async () => {
-    if (!jdFile || !candidatesFile) return;
+    if (!jdFile || !selectedDataset) return;
     setIsRunning(true);
     setStatus("Starting");
-    setProgressMessages(["Uploading files..."]);
+    setProgressMessages(["Uploading job description..."]);
     setLastError(null);
     setCurrentStage("loading_model");
     setStageLabel("Starting...");
@@ -42,7 +82,7 @@ export function useRanking() {
     try {
       const fd = new FormData();
       fd.append("jd", jdFile);
-      fd.append("candidates", candidatesFile);
+      fd.append("dataset", selectedDataset);
 
       let uploaded = false;
       let attempt = 0;
@@ -135,13 +175,19 @@ export function useRanking() {
       setCurrentStage("error");
       setStageLabel("Error");
     }
-  }, [jdFile, candidatesFile]);
+  }, [jdFile, selectedDataset]);
 
   return {
     jdFile,
     setJdFile,
-    candidatesFile,
-    setCandidatesFile,
+    datasetFile,
+    setDatasetFile,
+    datasets,
+    selectedDataset,
+    setSelectedDataset,
+    uploadDataset,
+    refreshDatasets,
+    isUploadingDataset,
     startRanking,
     retry: startRanking,
     isRunning,

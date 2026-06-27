@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from datetime import datetime, timezone
 import csv
 import sys
@@ -27,6 +27,8 @@ import time
 import os
 
 PROJECT_ROOT = Path(__file__).resolve().parent
+DATASET_UPLOAD_DIR = PROJECT_ROOT / "data" / "uploads"
+UPLOAD_CHUNK_SIZE = 1024 * 1024
 
 app = FastAPI()
 
@@ -340,6 +342,62 @@ def _extract_count(line: str) -> int | None:
     return None
 
 
+def _format_file_size(size_bytes: int) -> str:
+    units = ("B", "KB", "MB", "GB")
+    size = float(size_bytes)
+    for unit in units:
+        if size < 1024 or unit == units[-1]:
+            return f"{size:.1f} {unit}" if unit != "B" else f"{int(size)} B"
+        size /= 1024
+    return f"{size_bytes} B"
+
+
+def _safe_dataset_path(dataset_name: str) -> Path:
+    if not dataset_name:
+        raise HTTPException(status_code=400, detail="Dataset is required")
+    if "/" in dataset_name or "\\" in dataset_name:
+        raise HTTPException(status_code=400, detail="Invalid dataset name")
+    if Path(dataset_name).name != dataset_name:
+        raise HTTPException(status_code=400, detail="Invalid dataset name")
+
+    path = (DATASET_UPLOAD_DIR / dataset_name).resolve()
+    upload_root = DATASET_UPLOAD_DIR.resolve()
+    if path.parent != upload_root:
+        raise HTTPException(status_code=400, detail="Invalid dataset path")
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    return path
+
+
+async def _save_upload_file(upload: UploadFile, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = destination.with_suffix(destination.suffix + ".part")
+    try:
+        with tmp_path.open("wb") as out_file:
+            while True:
+                chunk = await upload.read(UPLOAD_CHUNK_SIZE)
+                if not chunk:
+                    break
+                out_file.write(chunk)
+        tmp_path.replace(destination)
+    finally:
+        await upload.close()
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+
+
+def _dataset_info(path: Path) -> dict:
+    stat = path.stat()
+    return {
+        "name": path.name,
+        "size": _format_file_size(stat.st_size),
+        "uploaded_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+    }
+
+
 def run_ranking(candidates_path: Path, jd_path: Path, out_path: Path, extra_args=None):
     STATE["status"] = "running"
     STATE["progressMessage"] = "Starting ranking script"
@@ -412,20 +470,45 @@ def run_ranking(candidates_path: Path, jd_path: Path, out_path: Path, extra_args
         _set_error("Ranking process interrupted", _extract_file_from_traceback(tb_text) or str(e))
 
 
+@app.post("/datasets/upload")
+async def upload_dataset(file: UploadFile = File(...)):
+    filename = Path(file.filename or "").name
+    if not filename:
+        raise HTTPException(status_code=400, detail="Dataset filename is required")
+    if "/" in (file.filename or "") or "\\" in (file.filename or ""):
+        raise HTTPException(status_code=400, detail="Invalid dataset filename")
+    if Path(file.filename or "").name != file.filename:
+        raise HTTPException(status_code=400, detail="Invalid dataset filename")
+    if Path(filename).suffix.lower() not in {".jsonl", ".json", ".csv"}:
+        raise HTTPException(status_code=400, detail="Dataset must be .jsonl, .json, or .csv")
+
+    destination = DATASET_UPLOAD_DIR / filename
+    await _save_upload_file(file, destination)
+    return JSONResponse(_dataset_info(destination))
+
+
+@app.get("/datasets")
+def list_datasets():
+    DATASET_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    files = [
+        _dataset_info(path)
+        for path in DATASET_UPLOAD_DIR.iterdir()
+        if path.is_file() and path.suffix.lower() in {".jsonl", ".json", ".csv"}
+    ]
+    files.sort(key=lambda item: item["uploaded_at"], reverse=True)
+    return JSONResponse(files)
+
+
 @app.post("/rank")
-async def rank(jd: UploadFile = File(...), candidates: UploadFile = File(...)):
+async def rank(jd: UploadFile = File(...), dataset: str = Form(...)):
     timestamp = int(time.time())
     uploads = Path(".uploads")
     uploads.mkdir(exist_ok=True)
     jd_path = uploads / f"jd_{timestamp}.txt"
-    cand_path = uploads / f"candidates_{timestamp}.jsonl"
+    cand_path = _safe_dataset_path(dataset)
     out_path = Path("submission_top100.csv")
 
-    # save files
-    with jd_path.open("wb") as f:
-        f.write(await jd.read())
-    with cand_path.open("wb") as f:
-        f.write(await candidates.read())
+    await _save_upload_file(jd, jd_path)
 
     # launch background thread
     t = threading.Thread(target=run_ranking, args=(cand_path, jd_path, out_path), daemon=True)

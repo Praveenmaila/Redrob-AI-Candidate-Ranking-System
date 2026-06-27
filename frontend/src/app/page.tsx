@@ -14,13 +14,17 @@ export default function DashboardPage() {
   const {
     jdFile,
     setJdFile,
-    candidatesFile,
-    setCandidatesFile,
+    datasetFile,
+    setDatasetFile,
+    datasets,
+    selectedDataset,
+    setSelectedDataset,
+    uploadDataset,
+    isUploadingDataset,
     startRanking,
     status,
     progressMessages,
     isRunning,
-    backendUrl,
     lastError,
     retry,
     currentStage,
@@ -57,17 +61,49 @@ export default function DashboardPage() {
 
         <div className="max-w-4xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="space-y-4">
+              <UploadCard
+                title="Candidate Dataset"
+                accepted={[".jsonl", ".csv"]}
+                file={datasetFile}
+                onFile={setDatasetFile}
+              />
+              <GlassCard className="p-4">
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
+                      Dataset
+                    </label>
+                    <select
+                      className="w-full rounded-xl border border-surface-200 dark:border-surface-700 bg-white/80 dark:bg-surface-900/80 px-3 py-2 text-sm outline-none focus:border-brand-400"
+                      value={selectedDataset}
+                      onChange={(e) => setSelectedDataset(e.target.value)}
+                    >
+                      <option value="">Select a dataset</option>
+                      {datasets.map((dataset) => (
+                        <option key={dataset.name} value={dataset.name}>
+                          {dataset.name} ({dataset.size})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="md"
+                    disabled={!datasetFile || isUploadingDataset || isRunning}
+                    isLoading={isUploadingDataset}
+                    onClick={() => uploadDataset()}
+                  >
+                    {isUploadingDataset ? "Uploading..." : "Upload Dataset"}
+                  </Button>
+                </div>
+              </GlassCard>
+            </div>
             <UploadCard
               title="Job Description"
               accepted={[".txt", ".docx", ".pdf"]}
               file={jdFile}
               onFile={setJdFile}
-            />
-            <UploadCard
-              title="Candidates Dataset"
-              accepted={[".jsonl", ".csv"]}
-              file={candidatesFile}
-              onFile={setCandidatesFile}
             />
           </div>
 
@@ -75,14 +111,14 @@ export default function DashboardPage() {
           <GlassCard className="p-4 md:p-5">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className={`w-2.5 h-2.5 rounded-full ${jdFile && candidatesFile ? "bg-emerald-500 animate-pulse" : "bg-surface-300 dark:bg-surface-600"}`} />
+                <div className={`w-2.5 h-2.5 rounded-full ${jdFile && selectedDataset ? "bg-emerald-500 animate-pulse" : "bg-surface-300 dark:bg-surface-600"}`} />
                 <span className="text-sm text-[var(--text-secondary)]">
-                  {!jdFile && !candidatesFile
-                    ? "Upload both files to begin"
+                  {!jdFile && !selectedDataset
+                    ? "Select a dataset and upload a job description"
                     : !jdFile
                     ? "Job description required"
-                    : !candidatesFile
-                    ? "Candidates dataset required"
+                    : !selectedDataset
+                    ? "Dataset selection required"
                     : "Ready to analyze"}
                 </span>
               </div>
@@ -90,7 +126,7 @@ export default function DashboardPage() {
                 <Button
                   variant="gradient"
                   size="lg"
-                  disabled={!jdFile || !candidatesFile || isRunning}
+                  disabled={!jdFile || !selectedDataset || isRunning}
                   isLoading={isRunning}
                   onClick={() => startRanking()}
                   leftIcon={!isRunning ? <Play className="w-4 h-4" /> : undefined}

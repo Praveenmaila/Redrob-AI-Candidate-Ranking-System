@@ -42,3 +42,8 @@ debug-*.md
 # ── Environment ───────────────────────────────────────────
 .env
 .env.local
+# Uploaded datasets
+data/uploads/
+# Ignore uploaded datasets
+data/uploads/*
+!data/uploads/.gitkeep

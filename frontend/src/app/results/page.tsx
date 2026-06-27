@@ -73,8 +73,8 @@ export default function ResultsPage() {
 
   async function handleDownload() {
     try {
-      const response = await fetch("/api/download");
-      const blob = await response.blob();
+      const response = await api.get("/download", { responseType: "blob" });
+      const blob = response.data as Blob;
       if ("showSaveFilePicker" in window) {
         const handle = await (window as any).showSaveFilePicker({
           suggestedName: "submission_top100.csv",
