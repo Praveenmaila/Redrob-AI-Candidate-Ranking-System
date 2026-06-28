@@ -6,8 +6,6 @@ import sys
 # Runtime check: ensure `python-multipart` is importable from the same Python
 # interpreter used to start the server. FastAPI raises a RuntimeError during
 # route analysis if multipart isn't installed; provide a clearer message.
-from fastapi import FastAPI
-
 app = FastAPI()
 
 @app.get("/")
@@ -45,7 +43,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 DATASET_UPLOAD_DIR = PROJECT_ROOT / "data" / "uploads"
 UPLOAD_CHUNK_SIZE = 1024 * 1024
 
-app = FastAPI()
+
 
 # Concurrency guard: at most one ranking subprocess at a time. Avoids
 # multiple concurrent runs competing for RAM and overwriting STATE.
