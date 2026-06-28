@@ -45,5 +45,6 @@ debug-*.md
 # Uploaded datasets
 data/uploads/
 # Ignore uploaded datasets
-data/uploads/*
+data/uploads/candidates.jsonl
+!data/uploads/sample_candidates_redrob.jsonl
 !data/uploads/.gitkeep
