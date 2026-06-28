@@ -6,6 +6,21 @@ import sys
 # Runtime check: ensure `python-multipart` is importable from the same Python
 # interpreter used to start the server. FastAPI raises a RuntimeError during
 # route analysis if multipart isn't installed; provide a clearer message.
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+async def root():
+    return {
+        "status": "OK",
+        "service": "Redrob AI Candidate Ranking API",
+        "endpoint": "/rank",
+        "docs": "/docs"
+    }
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
 try:
     import multipart  # type: ignore
 except Exception:
